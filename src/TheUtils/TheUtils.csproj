@@ -7,13 +7,27 @@
         <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
         <AssemblyName>TheUtils</AssemblyName>
         <RootNamespace>TheUtils</RootNamespace>
+
+
+        <PackageVersion>0.0.1</PackageVersion>
+        <Title>Utilities set</Title>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>Just a collection of useful opiniated extension methods</Description>
+        <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
+        <Authors>Kirill Gerasimenko</Authors>
+        <PackageLicenseUrl>https://github.com/kirill-gerasimenko-da/the-utils/blob/master/LICENSE</PackageLicenseUrl>
+        <PackageTags>language-ext utils</PackageTags>
+        <PackageId>TheUtils</PackageId>
+        <Product>TheUtils</Product>
+
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="FluentValidation" Version="11.4.0" />
-        <PackageReference Include="LanguageExt.Core" Version="4.4.0" />
-        <PackageReference Include="LanguageExt.Transformers" Version="4.4.0" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="7.0.0" />
+        <PackageReference Include="FluentValidation" Version="11.4.0"/>
+        <PackageReference Include="LanguageExt.Core" Version="4.4.0"/>
+        <PackageReference Include="LanguageExt.Transformers" Version="4.4.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="7.0.0"/>
     </ItemGroup>
 
 </Project>
