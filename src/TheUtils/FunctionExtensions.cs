@@ -17,12 +17,12 @@ public static class FunctionsExtensions
 
     public static async ValueTask<TOutput> InvokeUnsafe<TInput, TOutput>
     (
-        this IFunctionAsync<TInput, TOutput> func,
+        this FunctionAsync<TInput, TOutput> func,
         TInput input,
         CancellationToken token
     )
     {
-        var result = await func.Invoke(input, token);
+        var result = await func.Invoke(input, token).Run();
         return result.ThrowIfFail();
     }
 
@@ -36,9 +36,9 @@ public static class FunctionsExtensions
 
     public static TOutput InvokeUnsafe<TInput, TOutput>
     (
-        this IFunction<TInput, TOutput> func,
+        this Function<TInput, TOutput> func,
         TInput input,
         CancellationToken token
     ) =>
-        func.Invoke(input).ThrowIfFail();
+        func.Invoke(input).Run().ThrowIfFail();
 }
