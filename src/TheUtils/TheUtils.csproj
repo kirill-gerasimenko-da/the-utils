@@ -3,11 +3,9 @@
     <PropertyGroup>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-        <LangVersion>10</LangVersion>
-        <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
+        <LangVersion>11</LangVersion>
         <AssemblyName>TheUtils</AssemblyName>
         <RootNamespace>TheUtils</RootNamespace>
-
 
         <PackageVersion>0.0.1</PackageVersion>
         <Title>Utilities set</Title>
@@ -20,14 +18,15 @@
         <PackageTags>language-ext utils</PackageTags>
         <PackageId>TheUtils</PackageId>
         <Product>TheUtils</Product>
+        <TargetFramework>net7.0</TargetFramework>
 
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="FluentValidation" Version="11.4.0"/>
-        <PackageReference Include="LanguageExt.Core" Version="4.4.0"/>
-        <PackageReference Include="LanguageExt.Transformers" Version="4.4.0"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="7.0.0"/>
+        <PackageReference Include="FluentValidation" Version="11.4.0" />
+        <PackageReference Include="LanguageExt.Core" Version="4.4.0" />
+        <PackageReference Include="LanguageExt.Transformers" Version="4.4.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="7.0.0" />
     </ItemGroup>
 
 </Project>

@@ -9,6 +9,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils", "TheUtils\TheUti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.DataQuery", "TheUtils.DataQuery\TheUtils.DataQuery.csproj", "{ED44DE64-F520-4457-B90D-31AABB30FD93}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "ConsoleApp1\ConsoleApp1.csproj", "{51A7F3BF-F79D-429C-BEC4-E9C99E794841}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.SourceGenerator", "TheUtils.SourceGenerator\TheUtils.SourceGenerator.csproj", "{17181411-6656-4491-8D15-DAD41E4B2772}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +34,13 @@ Global
 		{ED44DE64-F520-4457-B90D-31AABB30FD93}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ED44DE64-F520-4457-B90D-31AABB30FD93}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ED44DE64-F520-4457-B90D-31AABB30FD93}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51A7F3BF-F79D-429C-BEC4-E9C99E794841}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51A7F3BF-F79D-429C-BEC4-E9C99E794841}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51A7F3BF-F79D-429C-BEC4-E9C99E794841}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51A7F3BF-F79D-429C-BEC4-E9C99E794841}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17181411-6656-4491-8D15-DAD41E4B2772}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17181411-6656-4491-8D15-DAD41E4B2772}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17181411-6656-4491-8D15-DAD41E4B2772}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17181411-6656-4491-8D15-DAD41E4B2772}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

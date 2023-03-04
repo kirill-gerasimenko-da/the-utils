@@ -29,7 +29,7 @@ public static class GeneralExtensions
     public static T RunUnsafe<T>(this Eff<T> eff) => eff.Run().ThrowIfFail();
 
     // errors
-    public static async Task<T> ThrowIfFail<T>(this ValueTask<Fin<T>> task) => (await task).ThrowIfFail();
+    public static async ValueTask<T> ThrowIfFail<T>(this ValueTask<Fin<T>> task) => (await task).ThrowIfFail();
 
     public static Aff<T> ErrorIfNone<T>(this Aff<Option<T>> aff, Error error) =>
         aff.Bind(result => result.ToAff(error));

@@ -1,24 +1,34 @@
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable VirtualMemberCallInConstructor
 
+// ReSharper disable TypeParameterCanBeVariant
+
 namespace TheUtils;
 
+using System.Runtime.CompilerServices;
 using FluentValidation;
 using FluentValidation.Results;
 using LanguageExt;
 using LanguageExt.Common;
 using static LanguageExt.Prelude;
 
-public static class Functions
+public static partial class Functions
 {
-    public interface IFunctionAff<in TInput, TOutput>
+    public interface IFunctionAff<TInput, TOutput>
     {
         Aff<TOutput> Invoke(TInput input, CancellationToken token);
     }
 
-    public interface IFunctionEff<in TInput, TOutput>
+    public interface IFunctionEff<TInput, TOutput>
     {
         Eff<TOutput> Invoke(TInput input);
+    }
+
+    public interface IConvertibleFunction<TAff, TAsync, TUnsafe>
+    {
+        TAff ToAff();
+        TAsync ToSafe();
+        TUnsafe ToUnsafe();
     }
 
     public delegate void InputValidator<TInput>(AbstractValidator<TInput> validator);
@@ -45,28 +55,26 @@ public static class Functions
             from _1 in guardnot(isnull(input), validationError("Input could not be null"))
             from validationResult in Eff(() => _validator.Validate(input))
             from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
-            from output in invoke(input, token)
+            from output in DoInvoke(input, token)
             select output;
 
-        protected abstract Aff<TOutput> invoke(TInput input, CancellationToken token);
+        protected abstract Aff<TOutput> DoInvoke(TInput input, CancellationToken token);
     }
 
-    public abstract class FunctionAsync<TInput, TOutput> : IFunctionAff<TInput, TOutput>
+    public abstract class FunctionAff<TOutput> : IFunctionAff<Unit, TOutput>
     {
-        readonly ValidatorImpl<TInput> _validator;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Aff<TOutput> Invoke(Unit _, CancellationToken token) => DoInvoke(token);
 
-        protected FunctionAsync() => _validator = new ValidatorImpl<TInput>(Validator);
+        protected abstract Aff<TOutput> DoInvoke(CancellationToken token);
+    }
 
-        protected virtual InputValidator<TInput> Validator { get; } = _ => { };
+    public abstract class FunctionAff : IFunctionAff<Unit, Unit>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Aff<Unit> Invoke(Unit _, CancellationToken token) => DoInvoke(token);
 
-        public Aff<TOutput> Invoke(TInput input, CancellationToken token) =>
-            from _1 in guardnot(isnull(input), validationError("Input could not be null"))
-            from validationResult in Eff(() => _validator.Validate(input))
-            from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
-            from output in AffMaybe(async () => await invoke(input, token))
-            select output;
-
-        protected abstract ValueTask<Fin<TOutput>> invoke(TInput input, CancellationToken token);
+        protected abstract Aff<Unit> DoInvoke(CancellationToken token);
     }
 
     public abstract class FunctionEff<TInput, TOutput> : IFunctionEff<TInput, TOutput>
@@ -81,27 +89,9 @@ public static class Functions
             from _1 in guardnot(isnull(input), validationError("Input could not be null"))
             from validationResult in Eff(() => _validator.Validate(input))
             from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
-            from output in invoke(input)
+            from output in DoInvoke(input)
             select output;
 
-        protected abstract Eff<TOutput> invoke(TInput input);
-    }
-
-    public abstract class Function<TInput, TOutput> : IFunctionEff<TInput, TOutput>
-    {
-        readonly ValidatorImpl<TInput> _validator;
-
-        protected Function() => _validator = new ValidatorImpl<TInput>(Validator);
-
-        protected virtual InputValidator<TInput> Validator { get; } = _ => { };
-
-        public Eff<TOutput> Invoke(TInput input) =>
-            from _1 in guardnot(isnull(input), validationError("Input could not be null"))
-            from validationResult in Eff(() => _validator.Validate(input))
-            from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
-            from output in EffMaybe(() => invoke(input))
-            select output;
-
-        protected abstract Fin<TOutput> invoke(TInput input);
+        protected abstract Eff<TOutput> DoInvoke(TInput input);
     }
 }
