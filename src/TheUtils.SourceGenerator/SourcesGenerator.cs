@@ -51,7 +51,7 @@ public static class SourcesGenerator
         }}
 
 ");
-            registrationLines.AppendLine($@"services.Add{f}Function(lifetime);");
+            registrationLines.AppendLine($@"services.Add{f.funcName}Function(lifetime);");
             registrationLines.Append("\t\t\t");
         }
 
