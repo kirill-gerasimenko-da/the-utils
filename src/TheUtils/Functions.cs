@@ -94,4 +94,21 @@ public static partial class Functions
 
         protected abstract Eff<TOutput> DoInvoke(TInput input);
     }
+    
+    public abstract class FunctionEff<TOutput> : IFunctionEff<Unit, TOutput>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Eff<TOutput> Invoke(Unit _) => DoInvoke();
+
+        protected abstract Eff<TOutput> DoInvoke();
+    }
+
+    public abstract class FunctionEff : IFunctionEff<Unit, Unit>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Eff<Unit> Invoke(Unit _) => DoInvoke();
+
+        protected abstract Eff<Unit> DoInvoke();
+    }
+    
 }
