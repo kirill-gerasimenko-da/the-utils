@@ -30,9 +30,9 @@ public partial class GetLatestUser : FunctionAff<InputType, ResultType>
 }
 
 [GenerateDelegates]
-public partial class DeleteUser : FunctionAff<bool>
+public partial class DeleteUser : FunctionAff<ResultType>
 {
-    protected override Aff<bool> DoInvoke(CancellationToken token)
+    protected override Aff<ResultType> DoInvoke(CancellationToken token)
     {
         throw new NotImplementedException();
     }

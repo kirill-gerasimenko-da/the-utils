@@ -14,8 +14,20 @@
    "-c" "Release"])
 
 (run "."
+  ["dotnet" "build"
+   "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
+   "-c" "Release"])
+
+(run "."
   ["dotnet" "pack"
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=0.0.2"])
+   "/p:PackageVersion=0.0.3"])
+
+(run "."
+  ["dotnet" "pack"
+   "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
+   "-c" "Release"
+   "-o" "./publish"
+   "/p:PackageVersion=0.0.1"])

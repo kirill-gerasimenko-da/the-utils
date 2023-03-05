@@ -1,5 +1,6 @@
 namespace TheUtils.SourceGenerator;
 
+using System.Buffers.Text;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
@@ -67,6 +68,10 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
             var result = SourcesGenerator.GenerateDelegates(del);
             context.AddSource($"{del.NamespaceName}.{del.FuncName}.g.cs", SourceText.From(result, Encoding.UTF8));
         }
+
+        context.AddSource("ServiceCollectionFunctionExtensions.g.cs",
+            SourceText.From(SourcesGenerator.GenerateDiExtensions(delegatesToGenerate.Select(d => d.FuncName).ToList()),
+            Encoding.UTF8));
     }
 
     static List<FuncMetadata> GetTypesToGenerate(
@@ -147,7 +152,7 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
     static bool IsSyntaxTargetForGeneration(SyntaxNode node)
         => node is ClassDeclarationSyntax { AttributeLists.Count: > 0 };
 
-    static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
+    static ClassDeclarationSyntax GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
     {
         var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
 

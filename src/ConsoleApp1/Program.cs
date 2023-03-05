@@ -10,11 +10,7 @@ public class Program
 
         builder.ConfigureServices((c, s) =>
         {
-            s.AddSingleton<IGetLatestUser, GetLatestUser>();
-            s.AddSingleton(x => x.GetService<IGetLatestUser>().ToAff());
-            s.AddSingleton(x => x.GetService<IGetLatestUser>().ToSafe());
-            s.AddSingleton(x => x.GetService<IGetLatestUser>().ToUnsafe());
-
+            s.AddAllFunctions();
             s.AddSingleton<SomeService>();
         });
 

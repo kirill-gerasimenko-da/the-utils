@@ -1,10 +1,83 @@
 namespace TheUtils.SourceGenerator;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 public static class SourcesGenerator
 {
+    public static string GenerateDiExtensions(List<string> functionNames)
+    {
+        var registrationLines = new StringBuilder();
+        var registrations = new StringBuilder();
+
+        foreach (var funcName in functionNames)
+        {
+            registrations.Append($@"
+
+        public static IServiceCollection Add{funcName}Function
+        (
+            this IServiceCollection services,
+            ServiceLifetime lifetime = ServiceLifetime.Singleton
+        )
+        {{
+            services.Add(new(
+                serviceType: typeof({funcName}),
+                implementationType: typeof({funcName}),
+                lifetime: lifetime));
+
+            services.Add(new(
+                serviceType: typeof(I{funcName}),
+                factory: x => x.GetService<{funcName}>(),
+                lifetime: lifetime));
+
+            services.Add(new (
+                serviceType: typeof({funcName}Aff),
+                factory: x => x.GetService<I{funcName}>().ToAff(),
+                lifetime: lifetime));
+
+            services.Add(new(
+                serviceType: typeof({funcName}Safe),
+                factory: x => x.GetService<I{funcName}>().ToSafe(),
+                lifetime: lifetime));
+
+            services.Add(new(
+                serviceType: typeof({funcName}Unsafe),
+                factory: x => x.GetService<I{funcName}>().ToUnsafe(),
+                lifetime: lifetime));
+
+            return services;
+        }}
+
+");
+            registrationLines.AppendLine($@"services.Add{funcName}Function(lifetime);");
+            registrationLines.Append("\t\t\t");
+        }
+
+        return $@"namespace ConsoleApp1
+{{
+    using Microsoft.Extensions.DependencyInjection;
+
+    public static class ServiceCollectionFunctionExtensions
+    {{
+        public static IServiceCollection AddAllFunctions
+        (
+            this IServiceCollection services,
+            ServiceLifetime lifetime = ServiceLifetime.Singleton
+        )
+        {{
+            {registrationLines}
+
+            return services;
+        }}
+
+        {registrations}
+    }}
+}}
+";
+    }
+
     static string Generate(FuncMetadataWithResult meta)
     {
         return @$"using System.Threading;
@@ -14,12 +87,12 @@ using static LanguageExt.Prelude;
 using TheUtils;
 using System.Runtime.CompilerServices;
 
-namespace {meta.NamespaceName} 
+namespace {meta.NamespaceName}
 {{
     public delegate Aff<{meta.ResultTypeName}> {meta.FuncName}Aff(CancellationToken token);
     public delegate ValueTask<Fin<{meta.ResultTypeName}>> {meta.FuncName}Safe(CancellationToken token);
     public delegate ValueTask<{meta.ResultTypeName}> {meta.FuncName}Unsafe(CancellationToken token);
-    
+
     public interface I{meta.FuncName} :
         Functions.IFunctionAff<Unit, {meta.ResultTypeName}>,
         Functions.IConvertibleFunction<
@@ -27,7 +100,7 @@ namespace {meta.NamespaceName}
             {meta.FuncName}Safe,
             {meta.FuncName}Unsafe> {{}}
 
-    public partial class {meta.FuncName} : I{meta.FuncName} 
+    public partial class {meta.FuncName} : I{meta.FuncName}
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Aff ToAff() => token => Invoke(unit, token);
@@ -61,17 +134,17 @@ using static LanguageExt.Prelude;
 using TheUtils;
 using System.Runtime.CompilerServices;
 
-namespace {meta.NamespaceName} 
+namespace {meta.NamespaceName}
 {{
     public delegate Aff<{meta.ResultTypeName}> {meta.FuncName}Aff(
         {inputParams}, CancellationToken token);
 
     public delegate ValueTask<Fin<{meta.ResultTypeName}>> {meta.FuncName}Safe(
         {inputParams}, CancellationToken token);
-    
+
     public delegate ValueTask<{meta.ResultTypeName}> {meta.FuncName}Unsafe(
         {inputParams}, CancellationToken token);
-    
+
     public interface I{meta.FuncName} :
         Functions.IFunctionAff
         <
@@ -83,14 +156,14 @@ namespace {meta.NamespaceName}
             {meta.FuncName}Safe,
             {meta.FuncName}Unsafe> {{}}
 
-    public partial class {meta.FuncName} : I{meta.FuncName} 
+    public partial class {meta.FuncName} : I{meta.FuncName}
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Aff ToAff() => ({inputParamsLambda}, token) => 
+        public {meta.FuncName}Aff ToAff() => ({inputParamsLambda}, token) =>
             Invoke(new({inputParamsLambda}), token);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Safe ToSafe() => ({inputParamsLambda}, token) => 
+        public {meta.FuncName}Safe ToSafe() => ({inputParamsLambda}, token) =>
             Invoke(new({inputParamsLambda}), token).Run();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,19 +176,19 @@ namespace {meta.NamespaceName}
 
     static string Generate(FuncMetadata meta)
     {
-         return @$"using System.Threading;
+        return @$"using System.Threading;
 using System.Threading.Tasks;
 using LanguageExt;
 using static LanguageExt.Prelude;
 using TheUtils;
 using System.Runtime.CompilerServices;
 
-namespace {meta.NamespaceName} 
+namespace {meta.NamespaceName}
 {{
     public delegate Aff<Unit> {meta.FuncName}Aff(CancellationToken token);
     public delegate ValueTask<Fin<Unit>> {meta.FuncName}Safe(CancellationToken token);
     public delegate ValueTask<Unit> {meta.FuncName}Unsafe(CancellationToken token);
-    
+
     public interface I{meta.FuncName} :
         Functions.IFunctionAff<Unit, Unit>,
         Functions.IConvertibleFunction<
@@ -123,7 +196,7 @@ namespace {meta.NamespaceName}
             {meta.FuncName}Safe,
             {meta.FuncName}Unsafe> {{}}
 
-    public partial class {meta.FuncName} : I{meta.FuncName} 
+    public partial class {meta.FuncName} : I{meta.FuncName}
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Aff ToAff() => token => Invoke(unit, token);
@@ -136,7 +209,7 @@ namespace {meta.NamespaceName}
     }}
 }}
 ";
-   }
+    }
 
     public static string GenerateDelegates(FuncMetadata meta) => meta switch
     {
