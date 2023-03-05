@@ -70,7 +70,8 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
         }
 
         context.AddSource("ServiceCollectionFunctionExtensions.g.cs",
-            SourceText.From(SourcesGenerator.GenerateDiExtensions(delegatesToGenerate.Select(d => d.FuncName).ToList()),
+            SourceText.From(SourcesGenerator.GenerateDiExtensions(
+                    delegatesToGenerate.Select(d => (d.FuncName, d.NamespaceName)).ToList()),
             Encoding.UTF8));
     }
 
@@ -100,7 +101,7 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
                 "FunctionAff`2" => new FuncMetadataWithInputAndResult
                 {
                     FuncName = classSymbol.Name,
-                    NamespaceName = classSymbol.ContainingNamespace.Name,
+                    NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
                     InputTypeName = baseType.TypeArguments[0].ToMinimalDisplayString(semanticModel, 0),
                     ResultTypeName = baseType.TypeArguments[1].ToMinimalDisplayString(semanticModel, 0),
                     InputType = baseType.TypeArguments[0]
@@ -108,13 +109,13 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
                 "FunctionAff`1" => new FuncMetadataWithResult
                 {
                     FuncName = classSymbol.Name,
-                    NamespaceName = classSymbol.ContainingNamespace.Name,
+                    NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
                     ResultTypeName = baseType.TypeArguments[0].ToMinimalDisplayString(semanticModel, 0)
                 },
                 "FunctionAff" => new FuncMetadata
                 {
                     FuncName = classSymbol.Name,
-                    NamespaceName = classSymbol.ContainingNamespace.Name,
+                    NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
                 },
                 _ => null
             };

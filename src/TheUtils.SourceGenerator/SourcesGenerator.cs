@@ -7,51 +7,51 @@ using System.Text;
 
 public static class SourcesGenerator
 {
-    public static string GenerateDiExtensions(List<string> functionNames)
+    public static string GenerateDiExtensions(List<(string funcName, string funcNamespace)> functions)
     {
         var registrationLines = new StringBuilder();
         var registrations = new StringBuilder();
 
-        foreach (var funcName in functionNames)
+        foreach (var f in functions)
         {
             registrations.Append($@"
 
-        public static IServiceCollection Add{funcName}Function
+        public static IServiceCollection Add{f.funcName}Function
         (
             this IServiceCollection services,
             ServiceLifetime lifetime = ServiceLifetime.Singleton
         )
         {{
             services.Add(new(
-                serviceType: typeof({funcName}),
-                implementationType: typeof({funcName}),
+                serviceType: typeof({f.funcNamespace}.{f.funcName}),
+                implementationType: typeof({f.funcNamespace}.{f.funcName}),
                 lifetime: lifetime));
 
             services.Add(new(
-                serviceType: typeof(I{funcName}),
-                factory: x => x.GetService<{funcName}>(),
+                serviceType: typeof({f.funcNamespace}.I{f.funcName}),
+                factory: x => x.GetService<{f.funcNamespace}.{f.funcName}>(),
                 lifetime: lifetime));
 
             services.Add(new (
-                serviceType: typeof({funcName}Aff),
-                factory: x => x.GetService<I{funcName}>().ToAff(),
+                serviceType: typeof({f.funcNamespace}.{f.funcName}Aff),
+                factory: x => x.GetService<{f.funcNamespace}.I{f.funcName}>().ToAff(),
                 lifetime: lifetime));
 
             services.Add(new(
-                serviceType: typeof({funcName}Safe),
-                factory: x => x.GetService<I{funcName}>().ToSafe(),
+                serviceType: typeof({f.funcNamespace}.{f.funcName}Safe),
+                factory: x => x.GetService<{f.funcNamespace}.I{f.funcName}>().ToSafe(),
                 lifetime: lifetime));
 
             services.Add(new(
-                serviceType: typeof({funcName}Unsafe),
-                factory: x => x.GetService<I{funcName}>().ToUnsafe(),
+                serviceType: typeof({f.funcNamespace}.{f.funcName}Unsafe),
+                factory: x => x.GetService<{f.funcNamespace}.I{f.funcName}>().ToUnsafe(),
                 lifetime: lifetime));
 
             return services;
         }}
 
 ");
-            registrationLines.AppendLine($@"services.Add{funcName}Function(lifetime);");
+            registrationLines.AppendLine($@"services.Add{f}Function(lifetime);");
             registrationLines.Append("\t\t\t");
         }
 
