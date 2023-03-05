@@ -53,7 +53,7 @@ public static partial class Functions
 
         protected virtual InputValidator<TInput> Validator { get; } = _ => { };
 
-        Aff<TOutput> IFunctionAff<TInput, TOutput>.Invoke(TInput input, CancellationToken token)
+        public Aff<TOutput> Invoke(TInput input, CancellationToken token)
         {
             _token = token;
 
@@ -72,7 +72,7 @@ public static partial class Functions
         protected CancellationToken _token { get; private set; }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        Aff<TOutput> IFunctionAff<Unit, TOutput>.Invoke(Unit _, CancellationToken token)
+        public Aff<TOutput> Invoke(Unit _, CancellationToken token)
         {
             _token = token;
             return InvokeAff();
@@ -86,7 +86,7 @@ public static partial class Functions
         protected CancellationToken _token { get; private set; }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        Aff<Unit> IFunctionAff<Unit, Unit>.Invoke(Unit _, CancellationToken token)
+        public Aff<Unit> Invoke(Unit _, CancellationToken token)
         {
             _token = token;
             return InvokeAff();
