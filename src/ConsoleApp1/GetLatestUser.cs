@@ -11,8 +11,16 @@ using static TheUtils.Functions;
 [GenerateDelegates]
 public partial class GetLatestUser : FunctionAff<InputType, ResultType>
 {
-    public readonly record struct InputType(string UserName, int Id);
-    public readonly record struct ResultType(int UserCount);
+    public readonly record struct InputType
+    (
+        string UserName,
+        int Id
+    );
+
+    public readonly record struct ResultType
+    (
+        int UserCount
+    );
 
     protected override InputValidator<InputType> Validator { get; } = v =>
     {
@@ -20,19 +28,19 @@ public partial class GetLatestUser : FunctionAff<InputType, ResultType>
         v.RuleFor(x => x.UserName).NotEmpty();
     };
 
-    public GetLatestUser(/* dependencies */)
+    public GetLatestUser( /* dependencies */)
     {
     }
 
-    protected override Aff<ResultType> DoInvoke(InputType input, CancellationToken token) => 
+    protected override Aff<ResultType> InvokeAff(InputType input) =>
         // SuccessAff("hello");
-        SuccessAff(new ResultType(100));
+        SuccessAff(new ResultType(_token.GetHashCode()));
 }
 
 [GenerateDelegates]
 public partial class DeleteUser : FunctionAff<ResultType>
 {
-    protected override Aff<ResultType> DoInvoke(CancellationToken token)
+    protected override Aff<ResultType> InvokeAff()
     {
         throw new NotImplementedException();
     }
@@ -41,7 +49,7 @@ public partial class DeleteUser : FunctionAff<ResultType>
 [GenerateDelegates]
 public partial class StartJob : FunctionAff
 {
-    protected override Aff<Unit> DoInvoke(CancellationToken token)
+    protected override Aff<Unit> InvokeAff()
     {
         throw new NotImplementedException();
     }

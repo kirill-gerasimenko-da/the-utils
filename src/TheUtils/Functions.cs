@@ -47,34 +47,79 @@ public static partial class Functions
     {
         readonly ValidatorImpl<TInput> _validator;
 
+        protected CancellationToken _token { get; private set; }
+
         protected FunctionAff() => _validator = new ValidatorImpl<TInput>(Validator);
 
         protected virtual InputValidator<TInput> Validator { get; } = _ => { };
 
-        public Aff<TOutput> Invoke(TInput input, CancellationToken token) =>
-            from _1 in guardnot(isnull(input), validationError("Input could not be null"))
-            from validationResult in Eff(() => _validator.Validate(input))
-            from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
-            from output in DoInvoke(input, token)
-            select output;
+        Aff<TOutput> IFunctionAff<TInput, TOutput>.Invoke(TInput input, CancellationToken token)
+        {
+            _token = token;
 
-        protected abstract Aff<TOutput> DoInvoke(TInput input, CancellationToken token);
+            return from _1 in guardnot(isnull(input), validationError("Input could not be null"))
+                from validationResult in Eff(() => _validator.Validate(input))
+                from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
+                from output in InvokeAff(input)
+                select output;
+        }
+
+        protected abstract Aff<TOutput> InvokeAff(TInput input);
     }
 
     public abstract class FunctionAff<TOutput> : IFunctionAff<Unit, TOutput>
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Aff<TOutput> Invoke(Unit _, CancellationToken token) => DoInvoke(token);
+        protected CancellationToken _token { get; private set; }
 
-        protected abstract Aff<TOutput> DoInvoke(CancellationToken token);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        Aff<TOutput> IFunctionAff<Unit, TOutput>.Invoke(Unit _, CancellationToken token)
+        {
+            _token = token;
+            return InvokeAff();
+        }
+
+        protected abstract Aff<TOutput> InvokeAff();
     }
 
     public abstract class FunctionAff : IFunctionAff<Unit, Unit>
     {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Aff<Unit> Invoke(Unit _, CancellationToken token) => DoInvoke(token);
+        protected CancellationToken _token { get; private set; }
 
-        protected abstract Aff<Unit> DoInvoke(CancellationToken token);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        Aff<Unit> IFunctionAff<Unit, Unit>.Invoke(Unit _, CancellationToken token)
+        {
+            _token = token;
+            return InvokeAff();
+        }
+
+        protected abstract Aff<Unit> InvokeAff();
+    }
+
+    public abstract class FunctionAsync<TInput, TOutput> : FunctionAff<TInput, TOutput>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override Aff<TOutput> InvokeAff(TInput input) =>
+            AffMaybe(async () => await InvokeAsync(input));
+
+        protected abstract Task<Fin<TOutput>> InvokeAsync(TInput input);
+    }
+
+    public abstract class FunctionAsync<TOutput> : FunctionAff<Unit, TOutput>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override Aff<TOutput> InvokeAff(Unit _) =>
+            AffMaybe(async () => await InvokeAsync());
+
+        protected abstract Task<Fin<TOutput>> InvokeAsync();
+    }
+
+    public abstract class FunctionAsync : FunctionAff<Unit, Unit>
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected override Aff<Unit> InvokeAff(Unit _) =>
+            AffMaybe(async () => await InvokeAsync());
+
+        protected abstract Task<Fin<Unit>> InvokeAsync();
     }
 
     public abstract class FunctionEff<TInput, TOutput> : IFunctionEff<TInput, TOutput>
@@ -85,30 +130,29 @@ public static partial class Functions
 
         protected virtual InputValidator<TInput> Validator { get; } = _ => { };
 
-        public Eff<TOutput> Invoke(TInput input) =>
+        Eff<TOutput> IFunctionEff<TInput, TOutput>.Invoke(TInput input) =>
             from _1 in guardnot(isnull(input), validationError("Input could not be null"))
             from validationResult in Eff(() => _validator.Validate(input))
             from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
-            from output in DoInvoke(input)
+            from output in InvokeEff(input)
             select output;
 
-        protected abstract Eff<TOutput> DoInvoke(TInput input);
+        protected abstract Eff<TOutput> InvokeEff(TInput input);
     }
-    
+
     public abstract class FunctionEff<TOutput> : IFunctionEff<Unit, TOutput>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Eff<TOutput> Invoke(Unit _) => DoInvoke();
+        Eff<TOutput> IFunctionEff<Unit, TOutput>.Invoke(Unit _) => InvokeEff();
 
-        protected abstract Eff<TOutput> DoInvoke();
+        protected abstract Eff<TOutput> InvokeEff();
     }
 
     public abstract class FunctionEff : IFunctionEff<Unit, Unit>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Eff<Unit> Invoke(Unit _) => DoInvoke();
+        Eff<Unit> IFunctionEff<Unit, Unit>.Invoke(Unit _) => InvokeEff();
 
-        protected abstract Eff<Unit> DoInvoke();
+        protected abstract Eff<Unit> InvokeEff();
     }
-    
 }

@@ -98,7 +98,7 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
 
             var funcMetadata = baseType.MetadataName switch
             {
-                "FunctionAff`2" => new FuncMetadataWithInputAndResult
+                "FunctionAff`2" or "FunctionAsync`2" => new FuncMetadataWithInputAndResult
                 {
                     FuncName = classSymbol.Name,
                     NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
@@ -106,13 +106,13 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
                     ResultTypeName = baseType.TypeArguments[1].ToMinimalDisplayString(semanticModel, 0),
                     InputType = baseType.TypeArguments[0]
                 },
-                "FunctionAff`1" => new FuncMetadataWithResult
+                "FunctionAff`1" or "FunctionAsync`1" => new FuncMetadataWithResult
                 {
                     FuncName = classSymbol.Name,
                     NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
                     ResultTypeName = baseType.TypeArguments[0].ToMinimalDisplayString(semanticModel, 0)
                 },
-                "FunctionAff" => new FuncMetadata
+                "FunctionAff" or "FunctionAsync" => new FuncMetadata
                 {
                     FuncName = classSymbol.Name,
                     NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
