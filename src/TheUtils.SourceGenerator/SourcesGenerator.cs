@@ -14,8 +14,14 @@ public static class SourcesGenerator
 
         foreach (var f in functions)
         {
+            var funcFullName = $"{f.funcNamespace}.{f.funcName}";
+            var funcFullNameAff = $"{funcFullName}Aff";
+            var funcFullNameUnsafe = $"{funcFullName}Unsafe";
+            var funcFullNameSafe = $"{funcFullName}Safe";
+            var funcInterfaceFullName = $"{f.funcNamespace}.I{f.funcName}";
+            var funcConvertibleFullName = $"Functions.IConvertibleFunction<{funcFullNameAff}, {funcFullNameSafe}, {funcFullNameUnsafe}>";
+            
             registrations.Append($@"
-
         public static IServiceCollection Add{f.funcName}Function
         (
             this IServiceCollection services,
@@ -23,33 +29,27 @@ public static class SourcesGenerator
         )
         {{
             services.Add(new(
-                serviceType: typeof({f.funcNamespace}.{f.funcName}),
-                implementationType: typeof({f.funcNamespace}.{f.funcName}),
-                lifetime: lifetime));
-
-            services.Add(new(
-                serviceType: typeof({f.funcNamespace}.I{f.funcName}),
-                factory: x => x.GetService<{f.funcNamespace}.{f.funcName}>(),
+                serviceType: typeof({funcInterfaceFullName}),
+                implementationType: typeof({funcFullName}),
                 lifetime: lifetime));
 
             services.Add(new (
-                serviceType: typeof({f.funcNamespace}.{f.funcName}Aff),
-                factory: x => x.GetService<{f.funcNamespace}.I{f.funcName}>().ToAff(),
+                serviceType: typeof({funcFullNameAff}),
+                factory: x => (({funcConvertibleFullName}) x.GetService<{funcInterfaceFullName}>()).ToAff(),
                 lifetime: lifetime));
 
             services.Add(new(
-                serviceType: typeof({f.funcNamespace}.{f.funcName}Safe),
-                factory: x => x.GetService<{f.funcNamespace}.I{f.funcName}>().ToSafe(),
+                serviceType: typeof({funcFullNameSafe}),
+                factory: x => (({funcConvertibleFullName}) x.GetService<{funcInterfaceFullName}>()).ToSafe(),
                 lifetime: lifetime));
 
             services.Add(new(
-                serviceType: typeof({f.funcNamespace}.{f.funcName}Unsafe),
-                factory: x => x.GetService<{f.funcNamespace}.I{f.funcName}>().ToUnsafe(),
+                serviceType: typeof({funcFullNameUnsafe}),
+                factory: x => (({funcConvertibleFullName}) x.GetService<{funcInterfaceFullName}>()).ToUnsafe(),
                 lifetime: lifetime));
 
             return services;
         }}
-
 ");
             registrationLines.AppendLine($@"services.Add{f.funcName}Function(lifetime);");
             registrationLines.Append("\t\t\t");
@@ -71,7 +71,6 @@ public static class SourcesGenerator
 
             return services;
         }}
-
         {registrations}
     }}
 }}
@@ -93,14 +92,18 @@ namespace {meta.NamespaceName}
     public delegate ValueTask<Fin<{meta.ResultTypeName}>> {meta.FuncName}Safe(CancellationToken token);
     public delegate ValueTask<{meta.ResultTypeName}> {meta.FuncName}Unsafe(CancellationToken token);
 
-    public interface I{meta.FuncName} :
-        Functions.IFunctionAff<Unit, {meta.ResultTypeName}>,
+    public interface I{meta.FuncName} : Functions.IFunctionAff
+    <
+        Unit,
+        {meta.ResultTypeName}
+    > {{}}
+
+    public partial class {meta.FuncName} : 
+        I{meta.FuncName},
         Functions.IConvertibleFunction<
             {meta.FuncName}Aff,
             {meta.FuncName}Safe,
-            {meta.FuncName}Unsafe> {{}}
-
-    public partial class {meta.FuncName} : I{meta.FuncName}
+            {meta.FuncName}Unsafe>
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Aff ToAff() => token => Invoke(unit, token);
@@ -150,13 +153,14 @@ namespace {meta.NamespaceName}
         <
             {meta.InputTypeName},
             {meta.ResultTypeName}
-        >,
+        > {{}}
+
+    public partial class {meta.FuncName} : 
+        I{meta.FuncName},
         Functions.IConvertibleFunction<
             {meta.FuncName}Aff,
             {meta.FuncName}Safe,
-            {meta.FuncName}Unsafe> {{}}
-
-    public partial class {meta.FuncName} : I{meta.FuncName}
+            {meta.FuncName}Unsafe>
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Aff ToAff() => ({inputParamsLambda}, token) =>
@@ -189,14 +193,14 @@ namespace {meta.NamespaceName}
     public delegate ValueTask<Fin<Unit>> {meta.FuncName}Safe(CancellationToken token);
     public delegate ValueTask<Unit> {meta.FuncName}Unsafe(CancellationToken token);
 
-    public interface I{meta.FuncName} :
-        Functions.IFunctionAff<Unit, Unit>,
+    public interface I{meta.FuncName} : Functions.IFunctionAff<Unit, Unit> {{}}
+
+    public partial class {meta.FuncName} : 
+        I{meta.FuncName},
         Functions.IConvertibleFunction<
             {meta.FuncName}Aff,
             {meta.FuncName}Safe,
-            {meta.FuncName}Unsafe> {{}}
-
-    public partial class {meta.FuncName} : I{meta.FuncName}
+            {meta.FuncName}Unsafe>
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Aff ToAff() => token => Invoke(unit, token);
