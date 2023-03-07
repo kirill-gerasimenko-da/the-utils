@@ -6,6 +6,8 @@ using TheUtils;
 using static LanguageExt.Prelude;
 using static TheUtils.Functions;
 
+public static partial class Database
+{
     [GenerateDelegates]
     public partial class GetLatestUser : FunctionAff<GetLatestUser.InputType, GetLatestUser.ResultType>
     {
@@ -34,24 +36,22 @@ using static TheUtils.Functions;
             // SuccessAff("hello");
             SuccessAff(new ResultType(_token.GetHashCode()));
     }
-
-public static partial class Database
-{
-    [GenerateDelegates]
-    public partial class DeleteUser : FunctionAff<GetLatestUser.ResultType>
-    {
-        protected override Aff<GetLatestUser.ResultType> InvokeAff()
-        {
-            throw new NotImplementedException();
-        }
-    }
 }
-//
+
 // [GenerateDelegates]
-// public partial class StartJob : FunctionAff
+// public partial class DeleteUser : FunctionAff<GetLatestUser.ResultType>
 // {
-//     protected override Aff<Unit> InvokeAff()
+//     protected override Aff<GetLatestUser.ResultType> InvokeAff()
 //     {
 //         throw new NotImplementedException();
 //     }
 // }
+
+[GenerateDelegates]
+public partial class StartJob : FunctionAff
+{
+    protected override Aff<Unit> InvokeAff()
+    {
+        throw new NotImplementedException();
+    }
+}

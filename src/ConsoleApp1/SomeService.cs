@@ -2,6 +2,7 @@ namespace ConsoleApp1;
 
 using System.Threading.Tasks;
 using LanguageExt;
+using static Database;
 
 public class SomeService
 {
@@ -12,6 +13,7 @@ public class SomeService
 
     public SomeService(
         IGetLatestUser getLatestUserObject,
+        StartJobAff start,
         GetLatestUserAff getLatestUser,
         GetLatestUserSafe getLatestUserAsync,
         GetLatestUserUnsafe getLatestUserUnsafe)

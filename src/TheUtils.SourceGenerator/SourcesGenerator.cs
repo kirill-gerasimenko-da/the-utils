@@ -19,11 +19,11 @@ public static class SourcesGenerator
         {
             var funcPrefix = f.funcParentType != null ? $"{f.funcParentType}." : "";
             
-            var funcFullName = $"{funcPrefix}{f.funcNamespace}.{f.funcName}";
+            var funcFullName = $"{f.funcNamespace}.{funcPrefix}{f.funcName}";
             var funcFullNameAff = $"{funcFullName}Aff";
             var funcFullNameUnsafe = $"{funcFullName}Unsafe";
             var funcFullNameSafe = $"{funcFullName}Safe";
-            var funcInterfaceFullName = $"{funcPrefix}{f.funcNamespace}.I{f.funcName}";
+            var funcInterfaceFullName = $"{f.funcNamespace}.{funcPrefix}I{f.funcName}";
             var funcConvertibleFullName = $"IConvertibleFunction<{funcFullNameAff}, {funcFullNameSafe}, {funcFullNameUnsafe}>";
             
             registrations.Append($@"
@@ -91,7 +91,7 @@ public static class SourcesGenerator
     {{
 " : "";
         
-        var outerClassEnd = meta.ParentClassName != null ? "}}" : "";
+        var outerClassEnd = meta.ParentClassName != null ? "}" : "";
         
         return @$"using System.Threading;
 using System.Threading.Tasks;
@@ -150,7 +150,7 @@ namespace {meta.NamespaceName}
     {{
 " : "";
         
-        var outerClassEnd = meta.ParentClassName != null ? "}}" : "";
+        var outerClassEnd = meta.ParentClassName != null ? "}" : "";
 
         return @$"using System.Threading;
 using System.Threading.Tasks;
@@ -208,7 +208,7 @@ namespace {meta.NamespaceName}
     {{
 " : "";
         
-        var outerClassEnd = meta.ParentClassName != null ? "}}" : "";
+        var outerClassEnd = meta.ParentClassName != null ? "}" : "";
 
         return @$"using System.Threading;
 using System.Threading.Tasks;
