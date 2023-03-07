@@ -30,4 +30,4 @@
    "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=0.0.7"])
+   "/p:PackageVersion=0.0.10"])

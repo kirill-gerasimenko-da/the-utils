@@ -21,6 +21,8 @@ public record FuncMetadata
 {
     public string FuncName { get; set; }
     public string NamespaceName { get; set; }
+    public string ParentClassName { get; set; }
+    public bool ParentClassIsStatic { get; set; }
 }
 
 public record FuncMetadataWithInputAndResult : FuncMetadataWithResult
@@ -70,9 +72,7 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
         }
 
         context.AddSource("ServiceCollectionFunctionExtensions.g.cs",
-            SourceText.From(SourcesGenerator.GenerateDiExtensions(
-                    delegatesToGenerate.Select(d => (d.FuncName, d.NamespaceName)).ToList()),
-            Encoding.UTF8));
+            SourceText.From(SourcesGenerator.GenerateDiExtensions(delegatesToGenerate), Encoding.UTF8));
     }
 
     static List<FuncMetadata> GetTypesToGenerate(
@@ -122,6 +122,12 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
 
             if (funcMetadata is null)
                 continue;
+
+            if (classSymbol.ContainingType is { DeclaredAccessibility: Accessibility.Public })
+            {
+                funcMetadata.ParentClassName = classSymbol.ContainingType.Name;
+                funcMetadata.ParentClassIsStatic = classSymbol.ContainingType.IsStatic;
+            }
 
             if (funcMetadata is FuncMetadataWithInputAndResult full)
             {

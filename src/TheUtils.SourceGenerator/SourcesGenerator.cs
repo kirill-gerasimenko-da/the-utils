@@ -7,19 +7,24 @@ using System.Text;
 
 public static class SourcesGenerator
 {
-    public static string GenerateDiExtensions(List<(string funcName, string funcNamespace)> functions)
+    public static string GenerateDiExtensions(List<FuncMetadata> functions)
     {
         var registrationLines = new StringBuilder();
         var registrations = new StringBuilder();
 
-        foreach (var f in functions)
+        foreach (var f in functions.Select(x => (
+                     funcName: x.FuncName,
+                     funcNamespace: x.NamespaceName,
+                     funcParentType: x.ParentClassName)))
         {
-            var funcFullName = $"{f.funcNamespace}.{f.funcName}";
+            var funcPrefix = f.funcParentType != null ? $"{f.funcParentType}." : "";
+            
+            var funcFullName = $"{funcPrefix}{f.funcNamespace}.{f.funcName}";
             var funcFullNameAff = $"{funcFullName}Aff";
             var funcFullNameUnsafe = $"{funcFullName}Unsafe";
             var funcFullNameSafe = $"{funcFullName}Safe";
-            var funcInterfaceFullName = $"{f.funcNamespace}.I{f.funcName}";
-            var funcConvertibleFullName = $"Functions.IConvertibleFunction<{funcFullNameAff}, {funcFullNameSafe}, {funcFullNameUnsafe}>";
+            var funcInterfaceFullName = $"{funcPrefix}{f.funcNamespace}.I{f.funcName}";
+            var funcConvertibleFullName = $"IConvertibleFunction<{funcFullNameAff}, {funcFullNameSafe}, {funcFullNameUnsafe}>";
             
             registrations.Append($@"
         public static IServiceCollection Add{f.funcName}Function
@@ -58,6 +63,8 @@ public static class SourcesGenerator
         return $@"namespace ConsoleApp1
 {{
     using Microsoft.Extensions.DependencyInjection;
+    using TheUtils;
+    using static TheUtils.Functions;
 
     public static class ServiceCollectionFunctionExtensions
     {{
@@ -79,6 +86,13 @@ public static class SourcesGenerator
 
     static string Generate(FuncMetadataWithResult meta)
     {
+        
+        var outerClassBegin = meta.ParentClassName != null ? $@"public {(meta.ParentClassIsStatic ? "static" : "")} partial class {meta.ParentClassName}
+    {{
+" : "";
+        
+        var outerClassEnd = meta.ParentClassName != null ? "}}" : "";
+        
         return @$"using System.Threading;
 using System.Threading.Tasks;
 using LanguageExt;
@@ -88,6 +102,7 @@ using System.Runtime.CompilerServices;
 
 namespace {meta.NamespaceName}
 {{
+    {outerClassBegin}
     public delegate Aff<{meta.ResultTypeName}> {meta.FuncName}Aff(CancellationToken token);
     public delegate ValueTask<Fin<{meta.ResultTypeName}>> {meta.FuncName}Safe(CancellationToken token);
     public delegate ValueTask<{meta.ResultTypeName}> {meta.FuncName}Unsafe(CancellationToken token);
@@ -114,6 +129,7 @@ namespace {meta.NamespaceName}
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Unsafe ToUnsafe() => token => Invoke(unit, token).Run().ThrowIfFail();
     }}
+    {outerClassEnd}
 }}
 ";
     }
@@ -129,6 +145,12 @@ namespace {meta.NamespaceName}
         var inputParamsLambda = string.Join(", ", meta
             .Parameters
             .Select(p => char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)));
+        
+        var outerClassBegin = meta.ParentClassName != null ? $@"public {(meta.ParentClassIsStatic ? "static" : "")} partial class {meta.ParentClassName}
+    {{
+" : "";
+        
+        var outerClassEnd = meta.ParentClassName != null ? "}}" : "";
 
         return @$"using System.Threading;
 using System.Threading.Tasks;
@@ -139,6 +161,7 @@ using System.Runtime.CompilerServices;
 
 namespace {meta.NamespaceName}
 {{
+    {outerClassBegin}
     public delegate Aff<{meta.ResultTypeName}> {meta.FuncName}Aff(
         {inputParams}, CancellationToken token);
 
@@ -174,12 +197,19 @@ namespace {meta.NamespaceName}
         public {meta.FuncName}Unsafe ToUnsafe() => ({inputParamsLambda}, token) =>
              Invoke(new({inputParamsLambda}), token).Run().ThrowIfFail();
     }}
+    {outerClassEnd}
 }}
 ";
     }
 
     static string Generate(FuncMetadata meta)
     {
+        var outerClassBegin = meta.ParentClassName != null ? $@"public {(meta.ParentClassIsStatic ? "static" : "")} partial class {meta.ParentClassName}
+    {{
+" : "";
+        
+        var outerClassEnd = meta.ParentClassName != null ? "}}" : "";
+
         return @$"using System.Threading;
 using System.Threading.Tasks;
 using LanguageExt;
@@ -189,6 +219,7 @@ using System.Runtime.CompilerServices;
 
 namespace {meta.NamespaceName}
 {{
+    {outerClassBegin}
     public delegate Aff<Unit> {meta.FuncName}Aff(CancellationToken token);
     public delegate ValueTask<Fin<Unit>> {meta.FuncName}Safe(CancellationToken token);
     public delegate ValueTask<Unit> {meta.FuncName}Unsafe(CancellationToken token);
@@ -211,6 +242,7 @@ namespace {meta.NamespaceName}
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public {meta.FuncName}Unsafe ToUnsafe() => token => Invoke(unit, token).Run().ThrowIfFail();
     }}
+    {outerClassEnd}
 }}
 ";
     }
