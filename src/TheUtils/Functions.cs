@@ -24,9 +24,9 @@ public static partial class Functions
         Eff<TOutput> Invoke(TInput input);
     }
 
-    public interface IConvertibleFunction<TAff, TAsync, TUnsafe>
+    public interface IConvertibleFunction<TEffect, TAsync, TUnsafe>
     {
-        TAff ToAff();
+        TEffect ToEffect();
         TAsync ToSafe();
         TUnsafe ToUnsafe();
     }

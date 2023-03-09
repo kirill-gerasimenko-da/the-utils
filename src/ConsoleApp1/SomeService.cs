@@ -13,7 +13,8 @@ public class SomeService
 
     public SomeService(
         IGetLatestUser getLatestUserObject,
-        StartJobAff start,
+        StartJobEff start,
+        DeleteUserAff deluser,
         GetLatestUserAff getLatestUser,
         GetLatestUserSafe getLatestUserAsync,
         GetLatestUserUnsafe getLatestUserUnsafe)
@@ -22,6 +23,8 @@ public class SomeService
         _getLatestUser = getLatestUser;
         _getLatestUserSafe = getLatestUserAsync;
         _getLatestUserUnsafe = getLatestUserUnsafe;
+        start();
+        deluser(default);
     }
     
     public async Task<int> SomeMethod()

@@ -23,6 +23,8 @@ public record FuncMetadata
     public string NamespaceName { get; set; }
     public string ParentClassName { get; set; }
     public bool ParentClassIsStatic { get; set; }
+    public bool IsEff { get; set; }
+    public string XDocs { get; set; }
 }
 
 public record FuncMetadataWithInputAndResult : FuncMetadataWithResult
@@ -94,28 +96,36 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
             if (semanticModel.GetDeclaredSymbol(classDeclarationSyntax) is not INamedTypeSymbol classSymbol)
                 continue;
 
+            var xdoc = classSymbol.GetDocumentationCommentXml();
+
             var baseType = classSymbol.BaseType;
 
             var funcMetadata = baseType.MetadataName switch
             {
-                "FunctionAff`2" or "FunctionAsync`2" => new FuncMetadataWithInputAndResult
+                "FunctionAff`2" or "FunctionAsync`2" or "FunctionEff`2" => new FuncMetadataWithInputAndResult
                 {
                     FuncName = classSymbol.Name,
                     NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
                     InputTypeName = baseType.TypeArguments[0].ToMinimalDisplayString(semanticModel, 0),
                     ResultTypeName = baseType.TypeArguments[1].ToMinimalDisplayString(semanticModel, 0),
-                    InputType = baseType.TypeArguments[0]
+                    InputType = baseType.TypeArguments[0],
+                    IsEff = baseType.MetadataName == "FunctionEff`2",
+                    XDocs = xdoc
                 },
-                "FunctionAff`1" or "FunctionAsync`1" => new FuncMetadataWithResult
+                "FunctionAff`1" or "FunctionAsync`1" or "FunctionEff`1" => new FuncMetadataWithResult
                 {
                     FuncName = classSymbol.Name,
                     NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
-                    ResultTypeName = baseType.TypeArguments[0].ToMinimalDisplayString(semanticModel, 0)
+                    ResultTypeName = baseType.TypeArguments[0].ToMinimalDisplayString(semanticModel, 0),
+                    IsEff = baseType.MetadataName == "FunctionEff`",
+                    XDocs = xdoc
                 },
-                "FunctionAff" or "FunctionAsync" => new FuncMetadata
+                "FunctionAff" or "FunctionAsync" or "FunctionEff" => new FuncMetadata
                 {
                     FuncName = classSymbol.Name,
                     NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
+                    IsEff = baseType.MetadataName == "FunctionEff",
+                    XDocs = xdoc
                 },
                 _ => null
             };

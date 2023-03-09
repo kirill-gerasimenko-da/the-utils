@@ -38,19 +38,19 @@ public static partial class Database
     }
 }
 
-// [GenerateDelegates]
-// public partial class DeleteUser : FunctionAff<GetLatestUser.ResultType>
-// {
-//     protected override Aff<GetLatestUser.ResultType> InvokeAff()
-//     {
-//         throw new NotImplementedException();
-//     }
-// }
+[GenerateDelegates]
+public partial class DeleteUser : FunctionAff<int>
+{
+    protected override Aff<int> InvokeAff()
+    {
+        throw new NotImplementedException();
+    }
+}
 
 [GenerateDelegates]
-public partial class StartJob : FunctionAff
+public partial class StartJob : FunctionEff
 {
-    protected override Aff<Unit> InvokeAff()
+    protected override Eff<Unit> InvokeEff()
     {
         throw new NotImplementedException();
     }
