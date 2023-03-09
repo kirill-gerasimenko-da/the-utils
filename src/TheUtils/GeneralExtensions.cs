@@ -36,4 +36,6 @@ public static class GeneralExtensions
 
     public static Aff<T> ErrorIfNone<T>(this Task<Option<T>> task, Error error) =>
         task.ToAff().Bind(result => result.ToAff(error));
+    
+    public static Eff<Unit> EffUnit(Action action) => Eff(() => { action(); return unit; });
 }
