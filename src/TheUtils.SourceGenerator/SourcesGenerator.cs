@@ -9,7 +9,6 @@ public static class SourcesGenerator
 {
     public static string GenerateDiExtensions(List<FuncMetadata> functions)
     {
-        var registrationLines = new StringBuilder();
         var registrations = new StringBuilder();
 
         foreach (var f in functions.Select(x => (
@@ -58,8 +57,6 @@ public static class SourcesGenerator
             return services;
         }}
 ");
-            registrationLines.AppendLine($@"services.Add{f.funcName}Function(lifetime);");
-            registrationLines.Append("\t\t\t");
         }
 
         return $@"namespace ConsoleApp1
@@ -68,18 +65,8 @@ public static class SourcesGenerator
     using TheUtils;
     using static TheUtils.Functions;
 
-    public static class ServiceCollectionFunctionExtensions
+    public static partial class ServiceCollectionFunctionExtensions
     {{
-        public static IServiceCollection AddAllFunctions
-        (
-            this IServiceCollection services,
-            ServiceLifetime lifetime = ServiceLifetime.Singleton
-        )
-        {{
-            {registrationLines}
-
-            return services;
-        }}
         {registrations}
     }}
 }}
