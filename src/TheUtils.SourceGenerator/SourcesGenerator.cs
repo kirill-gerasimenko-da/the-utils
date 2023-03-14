@@ -59,7 +59,7 @@ public static class SourcesGenerator
 ");
         }
 
-        return $@"namespace ConsoleApp1
+        return $@"namespace TheUtils.DependencyInjection
 {{
     using Microsoft.Extensions.DependencyInjection;
     using TheUtils;
