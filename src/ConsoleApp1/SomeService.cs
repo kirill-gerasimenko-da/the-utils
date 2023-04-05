@@ -2,6 +2,7 @@ namespace ConsoleApp1;
 
 using System.Threading.Tasks;
 using LanguageExt;
+using static LanguageExt.Prelude;
 using static Database;
 
 public class SomeService
@@ -23,8 +24,6 @@ public class SomeService
         _getLatestUser = getLatestUser;
         _getLatestUserSafe = getLatestUserAsync;
         _getLatestUserUnsafe = getLatestUserUnsafe;
-        start();
-        deluser(default);
     }
     
     public async Task<int> SomeMethod()

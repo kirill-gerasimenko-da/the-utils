@@ -130,7 +130,7 @@ public static partial class Functions
 
         protected virtual InputValidator<TInput> Validator { get; } = _ => { };
 
-        Eff<TOutput> IFunctionEff<TInput, TOutput>.Invoke(TInput input) =>
+        public Eff<TOutput> Invoke(TInput input) =>
             from _1 in guardnot(isnull(input), validationError("Input could not be null"))
             from validationResult in Eff(() => _validator.Validate(input))
             from _2 in guard(validationResult.IsValid, validationError(validationResult.Errors))
@@ -143,7 +143,7 @@ public static partial class Functions
     public abstract class FunctionEff<TOutput> : IFunctionEff<Unit, TOutput>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        Eff<TOutput> IFunctionEff<Unit, TOutput>.Invoke(Unit _) => InvokeEff();
+        public Eff<TOutput> Invoke(Unit _) => InvokeEff();
 
         protected abstract Eff<TOutput> InvokeEff();
     }
@@ -151,7 +151,7 @@ public static partial class Functions
     public abstract class FunctionEff : IFunctionEff<Unit, Unit>
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        Eff<Unit> IFunctionEff<Unit, Unit>.Invoke(Unit _) => InvokeEff();
+        public Eff<Unit> Invoke(Unit _) => InvokeEff();
 
         protected abstract Eff<Unit> InvokeEff();
     }

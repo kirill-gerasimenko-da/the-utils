@@ -1,5 +1,6 @@
 namespace ConsoleApp1;
 
+using System.Runtime.CompilerServices;
 using FluentValidation;
 using LanguageExt;
 using TheUtils;
@@ -25,7 +26,7 @@ public static partial class Database
         protected override InputValidator<InputType> Validator { get; } = v =>
         {
             v.RuleFor(x => x.Id).GreaterThan(0);
-            v.RuleFor(x => x.UserName).NotEmpty();
+            v.RuleFor(x => x.UserName).Empty();
         };
 
         public GetLatestUser( /* dependencies */)

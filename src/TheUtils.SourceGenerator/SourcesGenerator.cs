@@ -98,11 +98,21 @@ namespace {meta.NamespaceName}
     public delegate {effectSuffix}<{meta.ResultTypeName}> {meta.FuncName}{effectSuffix}(
         {(meta.IsEff ? "" : "CancellationToken token")});
 
-    public delegate ValueTask<Fin<{meta.ResultTypeName}>> {meta.FuncName}Safe(
-        {(meta.IsEff ? "" : "CancellationToken token")});
+    public delegate
+        {(meta.IsEff ? "" : "ValueTask<" )}
+            Fin<{meta.ResultTypeName}>
+        {(meta.IsEff ? "" : ">" )}
 
-    public delegate ValueTask<{meta.ResultTypeName}> {meta.FuncName}Unsafe(
-        {(meta.IsEff ? "" : "CancellationToken token")});
+        {meta.FuncName}Safe(
+            {(meta.IsEff ? "" : "CancellationToken token")});
+
+    public delegate
+        {(meta.IsEff ? "" : "ValueTask<" )}
+            {meta.ResultTypeName}
+        {(meta.IsEff ? "" : ">" )}
+
+        {meta.FuncName}Unsafe(
+            {(meta.IsEff ? "" : "CancellationToken token")});
 
     public interface I{meta.FuncName} : Functions.IFunction{effectSuffix}
     <
@@ -110,7 +120,7 @@ namespace {meta.NamespaceName}
         {meta.ResultTypeName}
     > {{}}
 
-    public partial class {meta.FuncName} : 
+    public partial class {meta.FuncName} :
         I{meta.FuncName},
         Functions.IConvertibleFunction<
             {meta.FuncName}{effectSuffix},
@@ -122,11 +132,11 @@ namespace {meta.NamespaceName}
             {(meta.IsEff ? "() => Invoke(unit)" : "token => Invoke(unit, token)")};
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Safe ToSafe() => 
+        public {meta.FuncName}Safe ToSafe() =>
             {(meta.IsEff ? "() => Invoke(unit)" : "token => Invoke(unit, token)")}.Run();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Unsafe ToUnsafe() => 
+        public {meta.FuncName}Unsafe ToUnsafe() =>
             {(meta.IsEff ? "() => Invoke(unit)" : "token => Invoke(unit, token)")}.Run().ThrowIfFail();
     }}
     {outerClassEnd}
@@ -170,11 +180,21 @@ namespace {meta.NamespaceName}
         {inputParams}
         {(meta.IsEff ? "" : ", CancellationToken token")});
 
-    public delegate ValueTask<Fin<{meta.ResultTypeName}>> {meta.FuncName}Safe(
+    public delegate
+        {(meta.IsEff ? "" : "ValueTask<" )}
+            Fin<{meta.ResultTypeName}>
+        {(meta.IsEff ? "" : ">" )}
+
+        {meta.FuncName}Safe(
         {inputParams}
         {(meta.IsEff ? "" : ", CancellationToken token")});
 
-    public delegate ValueTask<{meta.ResultTypeName}> {meta.FuncName}Unsafe(
+    public delegate
+        {(meta.IsEff ? "" : "ValueTask<" )}
+            {meta.ResultTypeName}
+        {(meta.IsEff ? "" : ">" )}
+
+        {meta.FuncName}Unsafe(
         {inputParams}
         {(meta.IsEff ? "" : ", CancellationToken token")});
 
@@ -184,7 +204,7 @@ namespace {meta.NamespaceName}
             {meta.ResultTypeName}
         > {{}}
 
-    public partial class {meta.FuncName} : 
+    public partial class {meta.FuncName} :
         I{meta.FuncName},
         Functions.IConvertibleFunction<
             {meta.FuncName}{effectSuffix},
@@ -192,17 +212,17 @@ namespace {meta.NamespaceName}
             {meta.FuncName}Unsafe>
     {{
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}{effectSuffix} ToEffect() => 
+        public {meta.FuncName}{effectSuffix} ToEffect() =>
             ({inputParamsLambda}{(meta.IsEff ? "": ", token")}) =>
             Invoke(new({inputParamsLambda}){(meta.IsEff ? "": ", token")});
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Safe ToSafe() => 
+        public {meta.FuncName}Safe ToSafe() =>
             ({inputParamsLambda}{(meta.IsEff ? "": ", token")}) =>
             Invoke(new({inputParamsLambda}){(meta.IsEff ? "": ", token")}).Run();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Unsafe ToUnsafe() => 
+        public {meta.FuncName}Unsafe ToUnsafe() =>
             ({inputParamsLambda}{(meta.IsEff ? "": ", token")}) =>
             Invoke(new({inputParamsLambda}){(meta.IsEff ? "": ", token")}).Run().ThrowIfFail();
     }}
@@ -220,7 +240,7 @@ namespace {meta.NamespaceName}
             : "";
 
         var outerClassEnd = meta.ParentClassName != null ? "}" : "";
-        
+
         var effectSuffix = meta.IsEff ? "Eff" : "Aff";
 
         return @$"using System.Threading;
@@ -236,15 +256,25 @@ namespace {meta.NamespaceName}
     public delegate {effectSuffix}<Unit> {meta.FuncName}{effectSuffix}(
         {(meta.IsEff ? "" : "CancellationToken token")});
 
-    public delegate ValueTask<Fin<Unit>> {meta.FuncName}Safe(
+    public delegate
+        {(meta.IsEff ? "" : "ValueTask<" )}
+            Fin<Unit>
+        {(meta.IsEff ? "" : ">" )}
+
+        {meta.FuncName}Safe(
         {(meta.IsEff ? "" : "CancellationToken token")});
 
-    public delegate ValueTask<Unit> {meta.FuncName}Unsafe(
+    public delegate
+        {(meta.IsEff ? "" : "ValueTask<" )}
+            Unit
+        {(meta.IsEff ? "" : ">" )}
+
+        {meta.FuncName}Unsafe(
         {(meta.IsEff ? "" : "CancellationToken token")});
 
     public interface I{meta.FuncName} : Functions.IFunction{effectSuffix}<Unit, Unit> {{}}
 
-    public partial class {meta.FuncName} : 
+    public partial class {meta.FuncName} :
         I{meta.FuncName},
         Functions.IConvertibleFunction<
             {meta.FuncName}{effectSuffix},
@@ -256,11 +286,11 @@ namespace {meta.NamespaceName}
             {(meta.IsEff ? "() => Invoke(unit)" : "token => Invoke(unit, token)")};
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Safe ToSafe() => 
+        public {meta.FuncName}Safe ToSafe() =>
             {(meta.IsEff ? "() => Invoke(unit)" : "token => Invoke(unit, token)")}.Run();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public {meta.FuncName}Unsafe ToUnsafe() => 
+        public {meta.FuncName}Unsafe ToUnsafe() =>
             {(meta.IsEff ? "() => Invoke(unit)" : "token => Invoke(unit, token)")}.Run().ThrowIfFail();
     }}
     {outerClassEnd}
