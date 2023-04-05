@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-public static class SourcesGenerator
+public static class DelegateFunctionSourcesGenerator
 {
     public static string GenerateDiExtensions(List<FuncMetadata> functions)
     {

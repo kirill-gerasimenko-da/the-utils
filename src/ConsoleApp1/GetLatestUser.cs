@@ -9,7 +9,7 @@ using static TheUtils.Functions;
 
 public static partial class Database
 {
-    [GenerateDelegates]
+    [AsDelegate]
     public partial class GetLatestUser : FunctionAff<GetLatestUser.InputType, GetLatestUser.ResultType>
     {
         public readonly record struct InputType
@@ -39,7 +39,7 @@ public static partial class Database
     }
 }
 
-[GenerateDelegates]
+[AsDelegate]
 public partial class DeleteUser : FunctionAff<int>
 {
     protected override Aff<int> InvokeAff()
@@ -48,7 +48,7 @@ public partial class DeleteUser : FunctionAff<int>
     }
 }
 
-[GenerateDelegates]
+[AsDelegate]
 public partial class StartJob : FunctionEff
 {
     protected override Eff<Unit> InvokeEff()

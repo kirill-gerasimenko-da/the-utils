@@ -68,12 +68,12 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
 
         foreach (var del in delegatesToGenerate)
         {
-            var result = SourcesGenerator.GenerateDelegates(del);
+            var result = DelegateFunctionSourcesGenerator.GenerateDelegates(del);
             context.AddSource($"{del.NamespaceName}.{del.FuncName}.g.cs", SourceText.From(result, Encoding.UTF8));
         }
 
         context.AddSource("ServiceCollectionFunctionExtensions.g.cs",
-            SourceText.From(SourcesGenerator.GenerateDiExtensions(delegatesToGenerate), Encoding.UTF8));
+            SourceText.From(DelegateFunctionSourcesGenerator.GenerateDiExtensions(delegatesToGenerate), Encoding.UTF8));
     }
 
     static List<FuncMetadata> GetTypesToGenerate(
@@ -83,7 +83,7 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
     {
         var functionsToGenerate = new List<FuncMetadata>();
 
-        var classAttribute = compilation.GetTypeByMetadataName("TheUtils.GenerateDelegatesAttribute");
+        var classAttribute = compilation.GetTypeByMetadataName("TheUtils.AsDelegateAttribute");
         if (classAttribute == null)
             return functionsToGenerate;
 
@@ -181,7 +181,7 @@ public class DelegateFunctionGenerator : IIncrementalGenerator
             var attributeContainingTypeSymbol = attributeSymbol.ContainingType;
             var fullName = attributeContainingTypeSymbol.ToDisplayString();
 
-            if (fullName == "TheUtils.GenerateDelegatesAttribute")
+            if (fullName == "TheUtils.AsDelegateAttribute")
                 return classDeclarationSyntax;
         }
 

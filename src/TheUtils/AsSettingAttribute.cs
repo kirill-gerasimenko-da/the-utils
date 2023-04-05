@@ -1,5 +1,5 @@
 namespace TheUtils;
 
 [AttributeUsage(AttributeTargets.Class)]
-public class GenerateDelegatesAttribute : Attribute
+public class AsSettingAttribute : Attribute
 { }
