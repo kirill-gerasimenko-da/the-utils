@@ -52,7 +52,6 @@ public abstract class UnitTestBase<TSystemUnderTest> where TSystemUnderTest : cl
     protected ISetup<T> Setup<T>(Expression<Action<T>> expression) where T : class =>
         Mock<T>().Setup(expression);
 
-
     // verification usability helpers
     protected void Verify<T, TResult>(Expression<Func<T, TResult>> expression, Func<Times> times) where T : class =>
         Mock<T>().Verify(expression, times);
