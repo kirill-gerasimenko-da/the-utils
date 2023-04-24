@@ -7,7 +7,7 @@
         <Nullable>disable</Nullable>
         <LangVersion>10</LangVersion>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>1.0.0</Version>
+        <Version>1.0.62</Version>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,6 +20,10 @@
 
     <ItemGroup>
         <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <Compile Remove="RecordFunction\RecordFunctionSourcesGenerator.cs" />
+        <Compile Remove="RecordFunction\RecordFunctionGenerator.cs" />
+        <Compile Remove="DelegateFunctionSourcesGenerator.cs" />
+        <Compile Remove="DelegateFunctionGenerator.cs" />
     </ItemGroup>
 
 <!--    https://stackoverflow.com/questions/65010453/how-to-pack-a-c-sharp-9-source-generator-and-upload-it-to-the-nuget-->

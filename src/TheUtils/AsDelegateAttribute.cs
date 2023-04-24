@@ -1,5 +1,5 @@
 namespace TheUtils;
 
 [AttributeUsage(AttributeTargets.Class)]
-public class AsDelegateAttribute : Attribute
+public class FunctionAttribute : Attribute
 { }

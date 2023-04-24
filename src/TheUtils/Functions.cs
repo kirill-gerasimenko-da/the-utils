@@ -10,6 +10,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using LanguageExt;
 using LanguageExt.Common;
+using LanguageExt.Effects.Traits;
 using static LanguageExt.Prelude;
 
 public static partial class Functions
@@ -33,6 +34,8 @@ public static partial class Functions
 
     public delegate void InputValidator<TInput>(AbstractValidator<TInput> validator);
 
+    public delegate void Validator<TInput>(AbstractValidator<TInput> validator);
+
     class ValidatorImpl<T> : AbstractValidator<T>
     {
         public ValidatorImpl(InputValidator<T> registerValidators) => registerValidators(this);
@@ -43,6 +46,13 @@ public static partial class Functions
     static Error validationError(IEnumerable<ValidationFailure> failures) =>
         Error.New(new ValidationException(failures));
 
+    // public abstract record FunctionRecordAff<TInput, TOutput>
+    //     where TInput : FunctionRecordAff<TInput, TOutput>
+    // {
+    //     protected virtual InlineValidator<TInput> Validator { get; } = new();
+    //     protected abstract Aff<RT, TOutput> Invoke<RT>() where RT : struct, HasCancel<RT>;
+    // }
+    //
     public abstract class FunctionAff<TInput, TOutput> : IFunctionAff<TInput, TOutput>
     {
         readonly ValidatorImpl<TInput> _validator;
