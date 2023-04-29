@@ -15,6 +15,8 @@ public static class FunctionSourcesGenerator
 
         var outerClassEnd = meta.ParentClassName != null ? "}" : "";
         
+        var parentClassPrefix = meta.ParentClassName != null ? $"{meta.ParentClassName}." : "";
+        
         var inputParams = string.Join(", ", meta
             .Parameters
             .Select(p => $"{p.TypeName} {char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
@@ -63,32 +65,32 @@ namespace TheUtils.DependencyInjection
         )
         {{
             services.Add(new(
-                serviceType: typeof({meta.FuncName}),
-                implementationType: typeof({meta.FuncName}),
+                serviceType: typeof({parentClassPrefix}{meta.FuncName}),
+                implementationType: typeof({parentClassPrefix}{meta.FuncName}),
                 lifetime));
 
             services.Add(new(
-                serviceType: typeof({meta.FuncName}Aff),
-                factory: x => new {meta.FuncName}Aff(
+                serviceType: typeof({parentClassPrefix}{meta.FuncName}Aff),
+                factory: x => new {parentClassPrefix}{meta.FuncName}Aff(
                     ({inputAsLambdaParams}) =>
-                        from result in x.GetRequiredService<{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                        from result in x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                             {(meta.ReturnIsValueTask || meta.ReturnIsValueFinTask ? ".ToAff()" : "")}
                             {(meta.ReturnIsValueFinTask ? ".Bind(v => v.ToAff())": "")}
                         select result),
                 lifetime));
 
             services.Add(new(
-                serviceType: typeof({meta.FuncName}Safe),
-                factory: x => new {meta.FuncName}Safe(
+                serviceType: typeof({parentClassPrefix}{meta.FuncName}Safe),
+                factory: x => new {parentClassPrefix}{meta.FuncName}Safe(
                     async ({inputAsLambdaParams}) =>
-                        await x.GetRequiredService<{meta.FuncName}Aff>()({inputAsLambdaParams}).Run()),
+                        await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}Aff>()({inputAsLambdaParams}).Run()),
                 lifetime));
 
             services.Add(new(
-                serviceType: typeof({meta.FuncName}Unsafe),
-                factory: x => new {meta.FuncName}Unsafe(
+                serviceType: typeof({parentClassPrefix}{meta.FuncName}Unsafe),
+                factory: x => new {parentClassPrefix}{meta.FuncName}Unsafe(
                     async ({inputAsLambdaParams}) =>
-                        await x.GetRequiredService<{meta.FuncName}Aff>()({inputAsLambdaParams}).RunUnsafe()),
+                        await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}Aff>()({inputAsLambdaParams}).RunUnsafe()),
                 lifetime));
 
             return services;

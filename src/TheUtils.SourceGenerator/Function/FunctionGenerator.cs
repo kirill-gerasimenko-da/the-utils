@@ -19,6 +19,8 @@ public record InputParameter
 
 public record FuncMetadata
 {
+    public ClassDeclarationSyntax ClassDeclarationSyntax { get; set; }
+
     public string FuncName { get; set; }
     public string NamespaceName { get; set; }
     public string ParentClassName { get; set; }
@@ -33,7 +35,7 @@ public record FuncMetadata
     public bool ReturnIsAff { get; set; }
     public string ReturnTypeName { get; set; }
     public string ReturnSubTypeName { get; set; }
-    
+
     public bool FoundInvokeFunction { get; set; }
 }
 
@@ -77,8 +79,10 @@ public class FunctionGenerator : IIncrementalGenerator
         foreach (var del in delegatesToGenerate)
         {
             if (!del.FoundInvokeFunction)
+            {
                 context.ReportDiagnostic(
-                    Diagnostic.Create(NoInvokeMethodFound, Location.None, del.FuncName));
+                    Diagnostic.Create(NoInvokeMethodFound, del.ClassDeclarationSyntax.GetLocation(), del.FuncName));
+            }
             else
             {
                 var result = FunctionSourcesGenerator.GenerateDelegates(del);
@@ -89,7 +93,7 @@ public class FunctionGenerator : IIncrementalGenerator
 
     static List<FuncMetadata> GetTypesToGenerate(
         Compilation compilation,
-        IEnumerable<ClassDeclarationSyntax> records,
+        IEnumerable<ClassDeclarationSyntax> classes,
         CancellationToken ct)
     {
         var functionsToGenerate = new List<FuncMetadata>();
@@ -98,16 +102,17 @@ public class FunctionGenerator : IIncrementalGenerator
         if (recordAttribute == null)
             return functionsToGenerate;
 
-        foreach (var recordDeclarationSyntax in records)
+        foreach (var classDeclarationSyntax in classes)
         {
             ct.ThrowIfCancellationRequested();
 
-            var semanticModel = compilation.GetSemanticModel(recordDeclarationSyntax.SyntaxTree);
-            if (semanticModel.GetDeclaredSymbol(recordDeclarationSyntax) is not INamedTypeSymbol classSymbol)
+            var semanticModel = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree);
+            if (semanticModel.GetDeclaredSymbol(classDeclarationSyntax) is not INamedTypeSymbol classSymbol)
                 continue;
 
             var func = new FuncMetadata
             {
+                ClassDeclarationSyntax = classDeclarationSyntax,
                 Type = classSymbol,
                 TypeName = classSymbol.ToMinimalDisplayString(semanticModel, 0),
                 FuncName = classSymbol.Name,
@@ -136,8 +141,8 @@ public class FunctionGenerator : IIncrementalGenerator
                                 TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
                             });
                         }
-                        
-                        func.FoundInvokeFunction = true; 
+
+                        func.FoundInvokeFunction = true;
                     }
 
                     if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "ValueTask`1")
@@ -162,8 +167,8 @@ public class FunctionGenerator : IIncrementalGenerator
                                 TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
                             });
                         }
-                        
-                        func.FoundInvokeFunction = true; 
+
+                        func.FoundInvokeFunction = true;
                     }
                 }
             }
