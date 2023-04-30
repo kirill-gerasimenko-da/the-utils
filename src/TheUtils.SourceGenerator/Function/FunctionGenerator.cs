@@ -131,7 +131,7 @@ public class FunctionGenerator : IIncrementalGenerator
                     {
                         func.ReturnIsAff = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
-                        func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"Aff\<([^\>]*)\>").Groups[1].Value;
+                        func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Aff\<(.*)\>$").Groups[1].Value;
 
                         foreach (var p in msr.Parameters)
                         {
@@ -149,13 +149,13 @@ public class FunctionGenerator : IIncrementalGenerator
                     {
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
 
-                        func.ReturnIsValueFinTask = Regex.IsMatch(func.ReturnTypeName, @"Fin\<([^\>]*)\>");
+                        func.ReturnIsValueFinTask = Regex.IsMatch(func.ReturnTypeName, @"^ValueTask\<LanguageExt\.Fin\<.*\>\>$");
                         if (func.ReturnIsValueFinTask)
                             func.ReturnSubTypeName =
-                                Regex.Match(func.ReturnTypeName, @"Fin\<([^\>]*)\>").Groups[1].Value;
+                                Regex.Match(func.ReturnTypeName, @"^ValueTask\<LanguageExt\.Fin\<(.*)\>\>$").Groups[1].Value;
                         else
                         {
-                            func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"\<([^\>]*)\>").Groups[1].Value;
+                            func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"^ValueTask\<(.*)\>$").Groups[1].Value;
                             func.ReturnIsValueTask = true;
                         }
 
