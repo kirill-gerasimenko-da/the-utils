@@ -43,15 +43,6 @@ public record FuncMetadata
 [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1036:Specify analyzer banned API enforcement setting")]
 public class FunctionGenerator : IIncrementalGenerator
 {
-    private static readonly DiagnosticDescriptor NoInvokeMethodFound = new(
-        id: "TUTLS01",
-        title: "Couldn't find 'Invoke' method",
-        messageFormat: "Could not find required 'Invoke' method on '{0}'",
-        category: "FunctionGenerator",
-        DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
-
-
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var classDeclarations = context.SyntaxProvider
@@ -78,12 +69,7 @@ public class FunctionGenerator : IIncrementalGenerator
 
         foreach (var del in delegatesToGenerate)
         {
-            if (!del.FoundInvokeFunction)
-            {
-                context.ReportDiagnostic(
-                    Diagnostic.Create(NoInvokeMethodFound, del.ClassDeclarationSyntax.GetLocation(), del.FuncName));
-            }
-            else
+            if (del.FoundInvokeFunction)
             {
                 var result = FunctionSourcesGenerator.GenerateDelegates(del);
                 context.AddSource($"{del.NamespaceName}.{del.FuncName}.g.cs", SourceText.From(result, Encoding.UTF8));
@@ -91,7 +77,7 @@ public class FunctionGenerator : IIncrementalGenerator
         }
     }
 
-    static List<FuncMetadata> GetTypesToGenerate(
+    public static List<FuncMetadata> GetTypesToGenerate(
         Compilation compilation,
         IEnumerable<ClassDeclarationSyntax> classes,
         CancellationToken ct)

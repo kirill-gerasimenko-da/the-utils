@@ -7,7 +7,8 @@
         <Nullable>disable</Nullable>
         <LangVersion>10</LangVersion>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>1.0.71</Version>
+        <Version>1.0.79</Version>
+        <EnforceExtendedAnalyzerRules>True</EnforceExtendedAnalyzerRules>
     </PropertyGroup>
 
     <ItemGroup>
