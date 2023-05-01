@@ -20,8 +20,13 @@ public class GetDeviceUserId
     {
         return SuccessEff("username");
     }
-    
-    public string Invoke2 (string manufacturer, CancellationToken token)
+
+    public string Invoke2(string manufacturer, CancellationToken token)
+    {
+        return "username";
+    }
+
+    public Fin<string> Invoke3(string manufacturer, CancellationToken token)
     {
         return "username";
     }
@@ -30,7 +35,9 @@ public class GetDeviceUserId
 // generated
 
 public delegate Eff<string> GetDeviceUserIdEff(string manufacturer, CancellationToken token);
+
 public delegate Fin<string> GetDeviceUserIdSafe(string manufacturer, CancellationToken token);
+
 public delegate string GetDeviceUserIdUnsafe(string manufacturer, CancellationToken token);
 
 public static partial class ServiceCollectionFunctionExtensions
@@ -50,30 +57,38 @@ public static partial class ServiceCollectionFunctionExtensions
             serviceType: typeof(GetDeviceUserIdEff),
             factory: x => new GetDeviceUserIdEff(
                 (manufacturer, token) =>
-                    from result in x.GetRequiredService<GetDeviceUserId>().Invoke(manufacturer, token)
-                    select result),
+                    Eff(() => x.GetRequiredService<GetDeviceUserId>().Invoke(manufacturer, token)).Bind(identity)
+            ),
             lifetime));
         
         services.Add(new(
-            serviceType: typeof(GetDeviceIdAff),
-            factory: x => new GetDeviceIdAff(
+            serviceType: typeof(GetDeviceUserIdEff),
+            factory: x => new GetDeviceUserIdEff(
                 (manufacturer, token) =>
-                    from result in x.GetRequiredService<GetDeviceId>().Invoke3(manufacturer, token).ToAff().Bind(v => v.ToAff())
-                    select result),
+                    Eff(() => x.GetRequiredService<GetDeviceUserId>().Invoke2(manufacturer, token))
+            ),
             lifetime));
 
         services.Add(new(
-            serviceType: typeof(GetDeviceIdSafe),
-            factory: x => new GetDeviceIdSafe(
-                async (manufacturer, token) =>
-                    await x.GetRequiredService<GetDeviceIdAff>()(manufacturer, token).Run()),
+            serviceType: typeof(GetDeviceUserIdEff),
+            factory: x => new GetDeviceUserIdEff(
+                (manufacturer, token) =>
+                    Eff(() => x.GetRequiredService<GetDeviceUserId>().Invoke3(manufacturer, token)).Bind(v => v.ToEff())
+            ),
             lifetime));
 
         services.Add(new(
-            serviceType: typeof(GetDeviceIdUnsafe),
-            factory: x => new GetDeviceIdUnsafe(
-                async (manufacturer, token) =>
-                    await x.GetRequiredService<GetDeviceIdAff>()(manufacturer, token).RunUnsafe()),
+            serviceType: typeof(GetDeviceUserIdSafe),
+            factory: x => new GetDeviceUserIdSafe(
+                (manufacturer, token) =>
+                    x.GetRequiredService<GetDeviceUserIdEff>()(manufacturer, token).Run()),
+            lifetime));
+
+        services.Add(new(
+            serviceType: typeof(GetDeviceUserIdUnsafe),
+            factory: x => new GetDeviceUserIdUnsafe(
+                (manufacturer, token) =>
+                    x.GetRequiredService<GetDeviceUserIdEff>()(manufacturer, token).RunUnsafe()),
             lifetime));
 
         return services;
