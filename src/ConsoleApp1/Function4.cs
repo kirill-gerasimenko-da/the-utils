@@ -20,12 +20,12 @@ public class GetDeviceId
     {
         return SuccessAff("username");
     }
-    
+
     public ValueTask<string> Invoke2(string manufacturer, CancellationToken token)
     {
         return SuccessAff("username");
     }
-    
+
     public ValueTask<Fin<string>> Invoke3(string manufacturer, CancellationToken token)
     {
         return SuccessAff("username");
@@ -35,7 +35,9 @@ public class GetDeviceId
 // generated
 
 public delegate Aff<string> GetDeviceIdAff(string manufacturer, CancellationToken token);
+
 public delegate ValueTask<Fin<string>> GetDeviceIdSafe(string manufacturer, CancellationToken token);
+
 public delegate ValueTask<string> GetDeviceIdUnsafe(string manufacturer, CancellationToken token);
 
 public static partial class ServiceCollectionFunctionExtensions
@@ -55,16 +57,24 @@ public static partial class ServiceCollectionFunctionExtensions
             serviceType: typeof(GetDeviceIdAff),
             factory: x => new GetDeviceIdAff(
                 (manufacturer, token) =>
-                    from result in x.GetRequiredService<GetDeviceId>().Invoke(manufacturer, token)
-                    select result),
+                    Eff(() => x.GetRequiredService<GetDeviceId>().Invoke(manufacturer, token)).Bind(identity)
+            ),
+            lifetime));
+
+        services.Add(new(
+            serviceType: typeof(GetDeviceIdAff),
+            factory: x => new GetDeviceIdAff(
+                (manufacturer, token) =>
+                    Eff(() => x.GetRequiredService<GetDeviceId>().Invoke3(manufacturer, token).ToAff().Bind(v => v.ToAff())).Bind(identity)
+            ),
             lifetime));
         
         services.Add(new(
             serviceType: typeof(GetDeviceIdAff),
             factory: x => new GetDeviceIdAff(
                 (manufacturer, token) =>
-                    from result in x.GetRequiredService<GetDeviceId>().Invoke3(manufacturer, token).ToAff().Bind(v => v.ToAff())
-                    select result),
+                    Eff(() => x.GetRequiredService<GetDeviceId>().Invoke2(manufacturer, token).ToAff()).Bind(identity)
+            ),
             lifetime));
 
         services.Add(new(

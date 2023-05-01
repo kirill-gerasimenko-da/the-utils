@@ -73,10 +73,11 @@ namespace TheUtils.DependencyInjection
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Aff),
                 factory: x => new {parentClassPrefix}{meta.FuncName}Aff(
                     ({inputAsLambdaParams}) =>
-                        from result in x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                        Eff(() => x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                             {(meta.ReturnIsValueTask || meta.ReturnIsValueFinTask ? ".ToAff()" : "")}
-                            {(meta.ReturnIsValueFinTask ? ".Bind(v => v.ToAff())": "")}
-                        select result),
+                            {(meta.ReturnIsValueFinTask ? ".Bind(v => v.ToAff())": "")})
+                            .Bind(identity)
+                ),
                 lifetime));
 
             services.Add(new(
