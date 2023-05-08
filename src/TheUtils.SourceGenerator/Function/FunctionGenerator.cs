@@ -39,7 +39,6 @@ public record FuncMetadata
     public bool ReturnIsEffType { get; set; }
     public bool ReturnIsEff { get; set; }
 
-
     public string ReturnTypeName { get; set; }
     public string ReturnSubTypeName { get; set; }
 
