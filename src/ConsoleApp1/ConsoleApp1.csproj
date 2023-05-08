@@ -13,9 +13,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="DataQuery.LanguageExt" Version="0.0.36" />
+        <PackageReference Include="DataQuery.LanguageExt" Version="0.0.39" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="7.0.1" />
-        <PackageReference Include="TheUtils.SourceGenerator" Version="0.0.19" />
+        <PackageReference Include="TheUtils.SourceGenerator" Version="0.0.24" />
     </ItemGroup>
 
 </Project>

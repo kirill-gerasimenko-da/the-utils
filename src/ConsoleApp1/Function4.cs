@@ -23,12 +23,12 @@ public class GetDeviceId
 
     public ValueTask<string> Invoke2(string manufacturer, CancellationToken token)
     {
-        return SuccessAff("username");
+        return default;
     }
 
     public ValueTask<Fin<string>> Invoke3(string manufacturer, CancellationToken token)
     {
-        return SuccessAff("username");
+        return default;
     }
 }
 

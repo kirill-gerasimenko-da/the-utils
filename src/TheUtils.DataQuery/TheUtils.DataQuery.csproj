@@ -9,7 +9,7 @@
 
     <ItemGroup>
       <PackageReference Include="Dapper.SqlBuilder" Version="2.0.78" />
-      <PackageReference Include="DataQuery.LanguageExt" Version="0.0.36" />
+      <PackageReference Include="DataQuery.LanguageExt" Version="0.0.39" />
       <PackageReference Include="LanguageExt.Core" Version="4.4.3" />
     </ItemGroup>
 

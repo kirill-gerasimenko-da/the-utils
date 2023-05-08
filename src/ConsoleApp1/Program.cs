@@ -1,10 +1,7 @@
-﻿using ConsoleApp1;
-using LanguageExt;
+﻿using LanguageExt;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using TheUtils;
-using TheUtils.DependencyInjection;
 using static LanguageExt.Prelude;
 using static TheUtils.ConfigurationExtensions;
 
@@ -31,18 +28,11 @@ public class Program
 
             var sett = result.Run();
 
-            s.AddSingleton<SomeService>();
-            s.AddGetLatestUserFunction();
-            s.AddStartJobFunction();
-            s.AddDeleteUserFunction();
         });
 
         var app = builder.Build();
 
         await app.StartAsync();
-
-        await app.Services.GetService<SomeService>().SomeMethod();
-
         await app.StopAsync();
     }
 
