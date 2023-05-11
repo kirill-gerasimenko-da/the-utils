@@ -10,7 +10,7 @@ public static class GeneralExtensions
 {
     // option
     public static T IfNoneDefault<T>(this Option<T> opt) where T : class => opt.IfNoneUnsafe(default(T));
-    public static Option<T> ToOption<T>(this object o) where T : class => Optional(o as T);
+    public static Option<T> ToOption<T>(this T o) where T : class => Optional(o);
     public static Option<string> NoneIfEmpty(this string s) => isEmpty(s) ? None : Some(s);
     public static Option<string> NoneIfEmpty(this Option<string> s) => s.Bind(x => isEmpty(x) ? None : Some(x));
 

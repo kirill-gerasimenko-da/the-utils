@@ -23,7 +23,7 @@
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=0.0.12"])
+   "/p:PackageVersion=0.0.13"])
 
 (run "."
   ["dotnet" "pack"
