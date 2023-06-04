@@ -157,7 +157,7 @@ namespace TheUtils.DependencyInjection
         public static IServiceCollection Add{meta.FuncName}Function
         (
             this IServiceCollection services,
-            ServiceLifetime lifetime = ServiceLifetime.Singleton
+            ServiceLifetime lifetime
         )
         {{
             services.Add(new(
