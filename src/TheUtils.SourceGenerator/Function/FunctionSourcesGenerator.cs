@@ -51,7 +51,6 @@ namespace TheUtils.DependencyInjection
     using {meta.NamespaceName};
     using Microsoft.Extensions.DependencyInjection;
     using TheUtils;
-    using static TheUtils.Functions;
     using System;
     using System.Threading;
     using System.Threading.Tasks;
@@ -147,7 +146,6 @@ namespace TheUtils.DependencyInjection
     using {meta.NamespaceName};
     using Microsoft.Extensions.DependencyInjection;
     using TheUtils;
-    using static TheUtils.Functions;
     using System;
     using System.Threading;
     using System.Threading.Tasks;
