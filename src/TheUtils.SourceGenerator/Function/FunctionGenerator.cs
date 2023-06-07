@@ -31,7 +31,8 @@ public record FuncMetadata
     public List<InputParameter> Parameters { get; } = new();
 
     public bool ReturnIsValueFinTask { get; set; }
-    public bool ReturnIsValueTask { get; set; }
+    public bool ReturnIsTask { get; set; }
+    public bool ReturnIsTaskVoid { get; set; }
     public bool ReturnIsAff { get; set; }
 
     public bool ReturnIsEffFin { get; set; }
@@ -205,8 +206,90 @@ public class FunctionGenerator : IIncrementalGenerator
                         {
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^ValueTask\<(.*)\>$").Groups[1].Value;
-                            func.ReturnIsValueTask = true;
+                            func.ReturnIsTask = true;
                         }
+
+                        foreach (var p in msr.Parameters)
+                        {
+                            func.Parameters.Add(new InputParameter
+                            {
+                                Name = p.Name,
+                                TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
+                            });
+                        }
+
+                        func.FoundInvokeFunction = true;
+                    }
+                    else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "ValueTask")
+                    {
+                        func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
+                        func.ReturnSubTypeName = "Unit";
+                        func.ReturnIsTask = true;
+                        func.ReturnIsTaskVoid = true;
+
+                        foreach (var p in msr.Parameters)
+                        {
+                            func.Parameters.Add(new InputParameter
+                            {
+                                Name = p.Name,
+                                TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
+                            });
+                        }
+
+                        func.FoundInvokeFunction = true;
+                    }
+                    else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Task`1")
+                    {
+                        func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
+
+                        func.ReturnIsValueFinTask =
+                            Regex.IsMatch(func.ReturnTypeName, @"^Task\<LanguageExt\.Fin\<.*\>\>$");
+
+                        if (func.ReturnIsValueFinTask)
+                            func.ReturnSubTypeName =
+                                Regex.Match(func.ReturnTypeName, @"^Task\<LanguageExt\.Fin\<(.*)\>\>$").Groups[1]
+                                    .Value;
+                        else
+                        {
+                            func.ReturnSubTypeName =
+                                Regex.Match(func.ReturnTypeName, @"^Task\<(.*)\>$").Groups[1].Value;
+                            func.ReturnIsTask = true;
+                        }
+
+                        foreach (var p in msr.Parameters)
+                        {
+                            func.Parameters.Add(new InputParameter
+                            {
+                                Name = p.Name,
+                                TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
+                            });
+                        }
+
+                        func.FoundInvokeFunction = true;
+                    }
+                    else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Task")
+                    {
+                        func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
+                        func.ReturnSubTypeName = "Unit";
+                        func.ReturnIsTask = true;
+                        func.ReturnIsTaskVoid = true;
+
+                        foreach (var p in msr.Parameters)
+                        {
+                            func.Parameters.Add(new InputParameter
+                            {
+                                Name = p.Name,
+                                TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
+                            });
+                        }
+
+                        func.FoundInvokeFunction = true;
+                    }
+                    else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Void")
+                    {
+                        func.ReturnIsEff = true;
+                        func.ReturnIsEffRegularType = true;
+                        func.ReturnSubTypeName = "Unit";
 
                         foreach (var p in msr.Parameters)
                         {
@@ -224,8 +307,8 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnIsEff = true;
                         func.ReturnIsEffRegularType = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
-                        func.ReturnSubTypeName = func.ReturnTypeName; 
-                        
+                        func.ReturnSubTypeName = func.ReturnTypeName;
+
                         foreach (var p in msr.Parameters)
                         {
                             func.Parameters.Add(new InputParameter
@@ -234,7 +317,7 @@ public class FunctionGenerator : IIncrementalGenerator
                                 TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
                             });
                         }
-                        
+
                         func.FoundInvokeFunction = true;
                     }
                 }

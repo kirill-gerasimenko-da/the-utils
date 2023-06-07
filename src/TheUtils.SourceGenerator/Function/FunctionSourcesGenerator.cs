@@ -72,10 +72,13 @@ namespace TheUtils.DependencyInjection
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Aff),
                 factory: x => new {parentClassPrefix}{meta.FuncName}Aff(
                     ({inputAsLambdaParams}) =>
-                        Eff(() => x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
-                            {(meta.ReturnIsValueTask || meta.ReturnIsValueFinTask ? ".ToAff()" : "")}
-                            {(meta.ReturnIsValueFinTask ? ".Bind(v => v.ToAff())" : "")})
-                            .Bind(identity)
+                        Aff(async () => await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                            {(meta.ReturnIsTask && meta.ReturnIsTaskVoid ? ".ToUnit())" 
+                                : ")")}
+
+                            // {(meta.ReturnIsTask || meta.ReturnIsValueFinTask ? ".ToAff()" : "")}
+                            // {(meta.ReturnIsValueFinTask ? ".Bind(v => v.ToAff())" : "")})
+                            // .Bind(identity)
                 ),
                 lifetime));
 
