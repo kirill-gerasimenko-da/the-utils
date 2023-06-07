@@ -1,11 +1,6 @@
 namespace ConsoleApp1;
 
-using System.Collections;
-using FluentValidation;
-using FluentValidation.Results;
 using LanguageExt;
-using LanguageExt.Common;
-using LanguageExt.Effects.Traits;
 using Microsoft.Extensions.DependencyInjection;
 using TheUtils;
 using static LanguageExt.Prelude;
