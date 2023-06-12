@@ -23,21 +23,14 @@ public record FuncMetadata
 
     public string FuncName { get; set; }
     public string NamespaceName { get; set; }
+
     public string ParentClassName { get; set; }
     public bool ParentClassIsStatic { get; set; }
 
-    public ITypeSymbol Type { get; set; }
-    public string TypeName { get; set; }
     public List<InputParameter> Parameters { get; } = new();
 
-    public bool ReturnIsFin { get; set; }
     public bool ReturnIsTask { get; set; }
-    public bool ReturnIsTaskVoid { get; set; }
     public bool ReturnIsAff { get; set; }
-
-    public bool ReturnIsEffFin { get; set; }
-    public bool ReturnIsEffRegularType { get; set; }
-    public bool ReturnIsEffType { get; set; }
     public bool ReturnIsEff { get; set; }
 
     public string ReturnTypeName { get; set; }
@@ -120,8 +113,6 @@ public class FunctionGenerator : IIncrementalGenerator
             var func = new FuncMetadata
             {
                 ClassDeclarationSyntax = classDeclarationSyntax,
-                Type = classSymbol,
-                TypeName = classSymbol.ToMinimalDisplayString(semanticModel, 0),
                 FuncName = classSymbol.Name,
                 NamespaceName = classSymbol.ContainingNamespace.ToMinimalDisplayString(semanticModel, 0),
             };
@@ -139,10 +130,10 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnIsAff = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
 
-                        func.ReturnIsFin =
+                        var returnIsFin =
                             Regex.IsMatch(func.ReturnTypeName, @"^LanguageExt\.Aff\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsFin)
+                        if (returnIsFin)
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Aff\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
@@ -168,10 +159,10 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnIsEff = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
 
-                        func.ReturnIsFin =
+                        var returnIsFin =
                             Regex.IsMatch(func.ReturnTypeName, @"^LanguageExt\.Eff\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsFin)
+                        if (returnIsFin)
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Eff\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
@@ -197,11 +188,10 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnIsEff = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
 
-
-                        func.ReturnIsFin =
+                        var returnIsFin =
                             Regex.IsMatch(func.ReturnTypeName, @"^Fin\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsFin)
+                        if (returnIsFin)
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^Fin\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
@@ -227,10 +217,10 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
                         func.ReturnIsTask = true;
 
-                        func.ReturnIsFin =
+                        var returnIsFin =
                             Regex.IsMatch(func.ReturnTypeName, @"^ValueTask\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsFin)
+                        if (returnIsFin)
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^ValueTask\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
@@ -256,7 +246,6 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
                         func.ReturnSubTypeName = "Unit";
                         func.ReturnIsTask = true;
-                        func.ReturnIsTaskVoid = true;
 
                         foreach (var p in msr.Parameters)
                         {
@@ -274,10 +263,10 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
                         func.ReturnIsTask = true;
 
-                        func.ReturnIsFin =
+                        var returnIsFin =
                             Regex.IsMatch(func.ReturnTypeName, @"^Task\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsFin)
+                        if (returnIsFin)
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^Task\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
@@ -303,7 +292,6 @@ public class FunctionGenerator : IIncrementalGenerator
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
                         func.ReturnSubTypeName = "Unit";
                         func.ReturnIsTask = true;
-                        func.ReturnIsTaskVoid = true;
 
                         foreach (var p in msr.Parameters)
                         {
