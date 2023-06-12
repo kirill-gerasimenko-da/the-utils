@@ -30,7 +30,7 @@ public record FuncMetadata
     public string TypeName { get; set; }
     public List<InputParameter> Parameters { get; } = new();
 
-    public bool ReturnIsValueFinTask { get; set; }
+    public bool ReturnIsFin { get; set; }
     public bool ReturnIsTask { get; set; }
     public bool ReturnIsTaskVoid { get; set; }
     public bool ReturnIsAff { get; set; }
@@ -138,8 +138,19 @@ public class FunctionGenerator : IIncrementalGenerator
                     {
                         func.ReturnIsAff = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
-                        func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Aff\<(.*)\>$")
-                            .Groups[1].Value;
+
+                        func.ReturnIsFin =
+                            Regex.IsMatch(func.ReturnTypeName, @"^LanguageExt\.Aff\<Fin\<.*\>\>$");
+
+                        if (func.ReturnIsFin)
+                            func.ReturnSubTypeName =
+                                Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Aff\<Fin\<(.*)\>\>$").Groups[1]
+                                    .Value;
+                        else
+                        {
+                            func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Aff\<(.*)\>$")
+                                .Groups[1].Value;
+                        }
 
                         foreach (var p in msr.Parameters)
                         {
@@ -194,19 +205,19 @@ public class FunctionGenerator : IIncrementalGenerator
                     else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "ValueTask`1")
                     {
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
+                        func.ReturnIsTask = true;
 
-                        func.ReturnIsValueFinTask =
-                            Regex.IsMatch(func.ReturnTypeName, @"^ValueTask\<LanguageExt\.Fin\<.*\>\>$");
+                        func.ReturnIsFin =
+                            Regex.IsMatch(func.ReturnTypeName, @"^ValueTask\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsValueFinTask)
+                        if (func.ReturnIsFin)
                             func.ReturnSubTypeName =
-                                Regex.Match(func.ReturnTypeName, @"^ValueTask\<LanguageExt\.Fin\<(.*)\>\>$").Groups[1]
+                                Regex.Match(func.ReturnTypeName, @"^ValueTask\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
                         else
                         {
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^ValueTask\<(.*)\>$").Groups[1].Value;
-                            func.ReturnIsTask = true;
                         }
 
                         foreach (var p in msr.Parameters)
@@ -241,19 +252,19 @@ public class FunctionGenerator : IIncrementalGenerator
                     else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Task`1")
                     {
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
+                        func.ReturnIsTask = true;
 
-                        func.ReturnIsValueFinTask =
-                            Regex.IsMatch(func.ReturnTypeName, @"^Task\<LanguageExt\.Fin\<.*\>\>$");
+                        func.ReturnIsFin =
+                            Regex.IsMatch(func.ReturnTypeName, @"^Task\<Fin\<.*\>\>$");
 
-                        if (func.ReturnIsValueFinTask)
+                        if (func.ReturnIsFin)
                             func.ReturnSubTypeName =
-                                Regex.Match(func.ReturnTypeName, @"^Task\<LanguageExt\.Fin\<(.*)\>\>$").Groups[1]
+                                Regex.Match(func.ReturnTypeName, @"^Task\<Fin\<(.*)\>\>$").Groups[1]
                                     .Value;
                         else
                         {
                             func.ReturnSubTypeName =
                                 Regex.Match(func.ReturnTypeName, @"^Task\<(.*)\>$").Groups[1].Value;
-                            func.ReturnIsTask = true;
                         }
 
                         foreach (var p in msr.Parameters)

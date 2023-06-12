@@ -73,11 +73,11 @@ namespace TheUtils.DependencyInjection
                 factory: x => new {parentClassPrefix}{meta.FuncName}Aff(
                     ({inputAsLambdaParams}) =>
                         Aff(async () => await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
-                            {(meta.ReturnIsTask && meta.ReturnIsTaskVoid ? ".ToUnit())" 
+                            {(meta.ReturnIsTask && meta.ReturnIsTaskVoid ? ".ToUnit())"
                                 : ")")}
 
-                            // {(meta.ReturnIsTask || meta.ReturnIsValueFinTask ? ".ToAff()" : "")}
-                            // {(meta.ReturnIsValueFinTask ? ".Bind(v => v.ToAff())" : "")})
+                            // {(meta.ReturnIsTask || meta.ReturnIsFin ? ".ToAff()" : "")}
+                            // {(meta.ReturnIsFin ? ".Bind(v => v.ToAff())" : "")})
                             // .Bind(identity)
                 ),
                 lifetime));
@@ -200,6 +200,27 @@ namespace TheUtils.DependencyInjection
 
     public static string GenerateDelegates(FuncMetadata meta) => meta switch
     {
+        { ReturnIsTask: true } => FunctionSourcesGeneratorTask.GenerateAff(
+            new FunctionSourcesGeneratorTask.FuncTask
+            {
+                FuncName = meta.FuncName,
+                Parameters = meta.Parameters,
+                NamespaceName = meta.NamespaceName,
+                ParentClassName = meta.ParentClassName,
+                ParentClassIsStatic = meta.ParentClassIsStatic,
+                ReturnSubTypeName = meta.ReturnSubTypeName
+            }
+        ),
+        { ReturnIsAff: true } => FunctionSourcesGeneratorAff.GenerateAff(
+            new FunctionSourcesGeneratorAff.FuncAff
+            {
+                FuncName = meta.FuncName,
+                Parameters = meta.Parameters,
+                NamespaceName = meta.NamespaceName,
+                ParentClassName = meta.ParentClassName,
+                ParentClassIsStatic = meta.ParentClassIsStatic,
+                ReturnSubTypeName = meta.ReturnSubTypeName
+            }),
         { ReturnIsEff: true } => GenerateEff(meta),
         { } => GenerateAff(meta),
         _ => throw new ArgumentOutOfRangeException(nameof(meta))
