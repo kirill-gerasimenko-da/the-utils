@@ -195,11 +195,21 @@ public class FunctionGenerator : IIncrementalGenerator
                     else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Fin`1")
                     {
                         func.ReturnIsEff = true;
-                        func.ReturnIsEffFin = true;
-
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
-                        func.ReturnSubTypeName =
-                            Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Fin\<(.*)\>$").Groups[1].Value;
+
+
+                        func.ReturnIsFin =
+                            Regex.IsMatch(func.ReturnTypeName, @"^Fin\<Fin\<.*\>\>$");
+
+                        if (func.ReturnIsFin)
+                            func.ReturnSubTypeName =
+                                Regex.Match(func.ReturnTypeName, @"^Fin\<Fin\<(.*)\>\>$").Groups[1]
+                                    .Value;
+                        else
+                        {
+                            func.ReturnSubTypeName =
+                                Regex.Match(func.ReturnTypeName, @"^Fin\<(.*)\>$").Groups[1].Value;
+                        }
 
                         foreach (var p in msr.Parameters)
                         {
@@ -309,7 +319,6 @@ public class FunctionGenerator : IIncrementalGenerator
                     else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Void")
                     {
                         func.ReturnIsEff = true;
-                        func.ReturnIsEffRegularType = true;
                         func.ReturnSubTypeName = "Unit";
 
                         foreach (var p in msr.Parameters)
@@ -326,7 +335,6 @@ public class FunctionGenerator : IIncrementalGenerator
                     else if (msr.Name == "Invoke")
                     {
                         func.ReturnIsEff = true;
-                        func.ReturnIsEffRegularType = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
                         func.ReturnSubTypeName = func.ReturnTypeName;
 

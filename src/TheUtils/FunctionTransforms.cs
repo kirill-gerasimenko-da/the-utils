@@ -17,12 +17,21 @@ public static class FunctionTransforms
 
     // effects
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Eff<T> Transform<T>(Func<Eff<T>> aff) =>
-        Eff(aff).Bind(identity);
+    public static Eff<T> Transform<T>(Func<Eff<T>> eff) =>
+        Eff(eff).Bind(identity);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Eff<T> Transform<T>(Func<Eff<Fin<T>>> aff) =>
-        Eff(aff).Bind(identity).Bind(static x => x.ToEff());
+    public static Eff<T> Transform<T>(Func<Eff<Fin<T>>> eff) =>
+        Eff(eff).Bind(identity).Bind(static x => x.ToEff());
+
+    // fins
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Eff<T> Transform<T>(Func<Fin<T>> fin) =>
+        Eff(fin).Bind(static x => x.ToEff());
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Eff<T> Transform<T>(Func<Fin<Fin<T>>> fin) =>
+        Eff(fin).Bind(static x => x.ToEff()).Bind(static x => x.ToEff());
 
     // tasks
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
