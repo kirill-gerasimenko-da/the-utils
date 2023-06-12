@@ -24,6 +24,10 @@ public static class FunctionTransforms
     public static Eff<T> Transform<T>(Func<Eff<Fin<T>>> eff) =>
         Eff(eff).Bind(identity).Bind(static x => x.ToEff());
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Eff<Unit> Transform(Action action) =>
+        Eff(() => { action(); return unit; });
+    
     // fins
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Eff<T> Transform<T>(Func<Fin<T>> fin) =>
