@@ -221,7 +221,16 @@ namespace TheUtils.DependencyInjection
                 ParentClassIsStatic = meta.ParentClassIsStatic,
                 ReturnSubTypeName = meta.ReturnSubTypeName
             }),
-        { ReturnIsEff: true } => GenerateEff(meta),
+        { ReturnIsEff: true } => FunctionSourcesGeneratorEff.GenerateAff(
+            new FunctionSourcesGeneratorEff.FuncEff
+            {
+                FuncName = meta.FuncName,
+                Parameters = meta.Parameters,
+                NamespaceName = meta.NamespaceName,
+                ParentClassName = meta.ParentClassName,
+                ParentClassIsStatic = meta.ParentClassIsStatic,
+                ReturnSubTypeName = meta.ReturnSubTypeName
+            }),
         { } => GenerateAff(meta),
         _ => throw new ArgumentOutOfRangeException(nameof(meta))
     };

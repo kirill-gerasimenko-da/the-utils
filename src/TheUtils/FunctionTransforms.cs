@@ -15,6 +15,15 @@ public static class FunctionTransforms
     public static Aff<T> Transform<T>(Func<Aff<Fin<T>>> aff) =>
         Eff(aff).Bind(identity).Bind(static x => x.ToAff());
 
+    // effects
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Eff<T> Transform<T>(Func<Eff<T>> aff) =>
+        Eff(aff).Bind(identity);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Eff<T> Transform<T>(Func<Eff<Fin<T>>> aff) =>
+        Eff(aff).Bind(identity).Bind(static x => x.ToEff());
+
     // tasks
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Aff<Unit> Transform(Func<ValueTask> func) =>

@@ -166,10 +166,20 @@ public class FunctionGenerator : IIncrementalGenerator
                     else if (msr.Name == "Invoke" && msr.ReturnType.MetadataName == "Eff`1")
                     {
                         func.ReturnIsEff = true;
-                        func.ReturnIsEffType = true;
                         func.ReturnTypeName = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0);
-                        func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Eff\<(.*)\>$")
-                            .Groups[1].Value;
+
+                        func.ReturnIsFin =
+                            Regex.IsMatch(func.ReturnTypeName, @"^LanguageExt\.Eff\<Fin\<.*\>\>$");
+
+                        if (func.ReturnIsFin)
+                            func.ReturnSubTypeName =
+                                Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Eff\<Fin\<(.*)\>\>$").Groups[1]
+                                    .Value;
+                        else
+                        {
+                            func.ReturnSubTypeName = Regex.Match(func.ReturnTypeName, @"^LanguageExt\.Eff\<(.*)\>$")
+                                .Groups[1].Value;
+                        }
 
                         foreach (var p in msr.Parameters)
                         {
