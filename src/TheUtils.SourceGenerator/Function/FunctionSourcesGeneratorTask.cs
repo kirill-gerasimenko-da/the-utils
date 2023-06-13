@@ -32,6 +32,10 @@ public static class FunctionSourcesGeneratorTask
             .Parameters
             .Select(p => $"{p.TypeName} {char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
 
+        var inputTypes = string.Join(", ", meta
+            .Parameters
+            .Select(p => p.TypeName));
+        
         var inputAsLambdaParams = string.Join(", ", meta.Parameters
             .Select(p => $"{char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
 
@@ -50,6 +54,34 @@ namespace {meta.NamespaceName}
     public delegate ValueTask<Fin<{meta.ReturnSubTypeName}>> {meta.FuncName}Safe({inputParams});
     public delegate ValueTask<{meta.ReturnSubTypeName}> {meta.FuncName}Unsafe({inputParams});
     {outerClassEnd}
+
+public static partial class {meta.FuncName}DelegateConverters
+{{
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Func<{inputTypes}, ValueTask<{meta.ReturnSubTypeName}>> ToFun(this {parentClassPrefix}{meta.FuncName}Unsafe del) =>
+        ({inputAsLambdaParams}) => del({inputAsLambdaParams});
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Func<{inputTypes}, ValueTask<Fin<{meta.ReturnSubTypeName}>>> ToFun(this {parentClassPrefix}{meta.FuncName}Safe del) =>
+        ({inputAsLambdaParams}) => del({inputAsLambdaParams});
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Func<{inputTypes}, Aff<{meta.ReturnSubTypeName}>> ToFun(this {parentClassPrefix}{meta.FuncName}Aff del) =>
+        ({inputAsLambdaParams}) => del({inputAsLambdaParams});
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static {parentClassPrefix}{meta.FuncName}Unsafe ToDel(this Func<{inputTypes}, ValueTask<{meta.ReturnSubTypeName}>> fun) =>
+        ({inputAsLambdaParams}) => fun({inputAsLambdaParams});
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static {parentClassPrefix}{meta.FuncName}Safe ToDel(this Func<{inputTypes}, ValueTask<Fin<{meta.ReturnSubTypeName}>>> fun) =>
+        ({inputAsLambdaParams}) => fun({inputAsLambdaParams});
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static {parentClassPrefix}{meta.FuncName}Aff ToDel(this Func<{inputTypes}, Aff<{meta.ReturnSubTypeName}>> fun) =>
+        ({inputAsLambdaParams}) => fun({inputAsLambdaParams});
+}}
+
 }}
 
 namespace TheUtils.DependencyInjection
@@ -79,8 +111,8 @@ namespace TheUtils.DependencyInjection
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Aff),
                 factory: x => new {parentClassPrefix}{meta.FuncName}Aff(
                     ({inputAsLambdaParams}) =>
-                        Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                        Transform(async () =>
+                            await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         )
                 ),
                 lifetime));
@@ -88,9 +120,9 @@ namespace TheUtils.DependencyInjection
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Safe),
                 factory: x => new {parentClassPrefix}{meta.FuncName}Safe(
-                    async ({inputAsLambdaParams}) => await 
-                        Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                    ({inputAsLambdaParams}) =>
+                        Transform(async () =>
+                            await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         ).Run()
                 ),
                 lifetime));
@@ -98,9 +130,9 @@ namespace TheUtils.DependencyInjection
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Unsafe),
                 factory: x => new {parentClassPrefix}{meta.FuncName}Unsafe(
-                    async ({inputAsLambdaParams}) => await 
-                        Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                    ({inputAsLambdaParams}) => 
+                        Transform(async () =>
+                            await x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         ).Run().ThrowIfFail()
                 ),
                 lifetime));

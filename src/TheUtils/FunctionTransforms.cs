@@ -28,6 +28,10 @@ public static class FunctionTransforms
     public static Eff<Unit> Transform(Action action) =>
         Eff(() => { action(); return unit; });
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Eff<T> Transform<T>(Func<T> func) =>
+        Eff(func);
+    
     // fins
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Eff<T> Transform<T>(Func<Fin<T>> fin) =>
@@ -39,12 +43,12 @@ public static class FunctionTransforms
 
     // tasks
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Aff<Unit> Transform(Func<ValueTask> func) =>
-        Aff(async () => await func().ToUnit());
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Aff<T> Transform<T>(Func<ValueTask<T>> func) =>
         Aff(async () => await func());
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Aff<Unit> Transform(Func<ValueTask> func) =>
+        Aff(async () => await func().ToUnit());
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Aff<T> Transform<T>(Func<ValueTask<Fin<T>>> func) =>
