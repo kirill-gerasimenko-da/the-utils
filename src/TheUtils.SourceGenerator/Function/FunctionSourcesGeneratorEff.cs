@@ -35,7 +35,7 @@ public static class FunctionSourcesGeneratorEff
         var inputTypes = string.Join(", ", meta
             .Parameters
             .Select(p => p.TypeName));
-        
+
         var inputAsLambdaParams = string.Join(", ", meta.Parameters
             .Select(p => $"{char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
 
@@ -49,44 +49,17 @@ using System.Runtime.CompilerServices;
 
 namespace {meta.NamespaceName}
 {{
+    using Unit = LanguageExt.Unit;
     {outerClassBegin}
     public delegate Eff<{meta.ReturnSubTypeName}> {meta.FuncName}Eff({inputParams});
     public delegate Fin<{meta.ReturnSubTypeName}> {meta.FuncName}Safe({inputParams});
     public delegate {meta.ReturnSubTypeName} {meta.FuncName}Unsafe({inputParams});
     {outerClassEnd}
-
-public static partial class {meta.FuncName}DelegateConverters
-{{
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Func<{inputTypes}, {meta.ReturnSubTypeName}> ToFun(this {parentClassPrefix}{meta.FuncName}Unsafe del) =>
-        ({inputAsLambdaParams}) => del({inputAsLambdaParams});
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Func<{inputTypes}, Fin<{meta.ReturnSubTypeName}>> ToFun(this {parentClassPrefix}{meta.FuncName}Safe del) =>
-        ({inputAsLambdaParams}) => del({inputAsLambdaParams});
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Func<{inputTypes}, Eff<{meta.ReturnSubTypeName}>> ToFun(this {parentClassPrefix}{meta.FuncName}Eff del) =>
-        ({inputAsLambdaParams}) => del({inputAsLambdaParams});
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static {parentClassPrefix}{meta.FuncName}Unsafe ToDel(this Func<{inputTypes}, {meta.ReturnSubTypeName}> fun) =>
-        ({inputAsLambdaParams}) => fun({inputAsLambdaParams});
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static {parentClassPrefix}{meta.FuncName}Safe ToDel(this Func<{inputTypes}, Fin<{meta.ReturnSubTypeName}>> fun) =>
-        ({inputAsLambdaParams}) => fun({inputAsLambdaParams});
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static {parentClassPrefix}{meta.FuncName}Eff ToDel(this Func<{inputTypes}, Eff<{meta.ReturnSubTypeName}>> fun) =>
-        ({inputAsLambdaParams}) => fun({inputAsLambdaParams});
-}}
-
-
 }}
 
 namespace TheUtils.DependencyInjection
 {{
+    using Unit = LanguageExt.Unit;
     using {meta.NamespaceName};
     using Microsoft.Extensions.DependencyInjection;
     using TheUtils;
