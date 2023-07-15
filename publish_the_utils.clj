@@ -1,6 +1,6 @@
 #!/usr/bin/env bb
 
-(ns publish
+(ns publish_the_utils
   (:require [babashka.process :refer [process check]]))
 
 (defn run [dir args]
