@@ -39,7 +39,10 @@ public static class FunctionSourcesGeneratorTask
         var inputAsLambdaParams = string.Join(", ", meta.Parameters
             .Select(p => $"{char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
 
-        return @$"using System.Threading;
+        return @$"
+#pragma warning disable CS0105
+
+using System.Threading;
 using System.Threading.Tasks;
 using LanguageExt;
 using LanguageExt.Common;
