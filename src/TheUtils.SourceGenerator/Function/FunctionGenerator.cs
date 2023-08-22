@@ -43,7 +43,7 @@ public record FuncMetadata
 [SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS1036:Specify analyzer banned API enforcement setting")]
 public class FunctionGenerator : IIncrementalGenerator
 {
-    private static readonly DiagnosticDescriptor NoInvokeMethodFound = new(
+    public static readonly DiagnosticDescriptor NoInvokeMethodFound = new(
         id: "TUTLS01",
         title: "Couldn't find 'Invoke' method",
         messageFormat: "Could not find required 'Invoke' method on '{0}'",
