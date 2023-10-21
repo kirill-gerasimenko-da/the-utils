@@ -2,9 +2,9 @@
 
 namespace TheUtils;
 
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using LanguageExt;
+using Newtonsoft.Json;
 using static LanguageExt.Prelude;
 
 public static class ParseExtensions
@@ -15,8 +15,8 @@ public static class ParseExtensions
 
     public static Option<Uri> ParseUri(this string uri) => parseUri(uri);
 
-    public static Option<T> ParseJson<T>(this string json, Option<JsonSerializerOptions> options = default) =>
-        parseJson<T>(json, options);
+    public static Option<T> ParseJson<T>(this string json, Option<JsonSerializerSettings> settings = default) =>
+        parseJson<T>(json, settings);
 
     public static Option<Uri> parseUri(string uri, UriKind kind = UriKind.Absolute)
     {
@@ -29,14 +29,14 @@ public static class ParseExtensions
         return None;
     }
 
-    public static Option<T> parseJson<T>(string json, Option<JsonSerializerOptions> options = default)
+    public static Option<T> parseJson<T>(string json, Option<JsonSerializerSettings> settings = default)
     {
         if (isEmpty(json))
             return None;
 
         try
         {
-            return JsonSerializer.Deserialize<T>(json, options.IfNoneDefault());
+            return JsonConvert.DeserializeObject<T>(json, settings.IfNoneDefault());
         }
         catch
         {
