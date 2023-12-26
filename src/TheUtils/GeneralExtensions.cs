@@ -4,6 +4,7 @@ namespace TheUtils;
 
 using LanguageExt;
 using LanguageExt.Common;
+using LanguageExt.UnsafeValueAccess;
 using static LanguageExt.Prelude;
 
 public static class GeneralExtensions
@@ -13,6 +14,19 @@ public static class GeneralExtensions
     public static Option<T> ToOption<T>(this T o) where T : class => Optional(o);
     public static Option<string> NoneIfEmpty(this string s) => isEmpty(s) ? None : Some(s);
     public static Option<string> NoneIfEmpty(this Option<string> s) => s.Bind(x => isEmpty(x) ? None : Some(x));
+    public static bool IsSome<T>(this Option<T> o, out T value)
+    {
+        if (o.IsNone)
+        {
+            value = default;
+            return false;
+        }
+
+        value = o.ValueUnsafe();
+        return true;
+    }
+
+    public static Task<Option<T>> ToOption<T>(this Task<T> o) where T : class => Optional(o).Sequence();
 
     // ignore
     public static async ValueTask Ignore(this ValueTask<Unit> unitTask) => await unitTask;
