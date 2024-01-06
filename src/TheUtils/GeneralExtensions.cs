@@ -26,7 +26,11 @@ public static class GeneralExtensions
         return true;
     }
 
-    public static Task<Option<T>> ToOption<T>(this Task<T> o) where T : class => Optional(o).Sequence();
+    public static async Task<Option<T>> ToOption<T>(this Task<T> t) where T : class
+    {
+        var r = await t;
+        return Optional(r);
+    }
 
     // ignore
     public static async ValueTask Ignore(this ValueTask<Unit> unitTask) => await unitTask;
