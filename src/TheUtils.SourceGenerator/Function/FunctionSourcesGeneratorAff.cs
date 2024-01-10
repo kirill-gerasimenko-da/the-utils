@@ -55,9 +55,25 @@ namespace {meta.NamespaceName}
     using Unit = LanguageExt.Unit;
 
     {outerClassBegin}
+    /// <summary>
+    /// Delegate pointing to <see cref=""{meta.FuncName}""/>.
+    /// </summary>
     public delegate Aff<{meta.ReturnSubTypeName}> {meta.FuncName}Aff({inputParams});
+
+    /// <summary>
+    /// Delegate pointing to <see cref=""{meta.FuncName}""/>.
+    /// </summary>
     public delegate ValueTask<Fin<{meta.ReturnSubTypeName}>> {meta.FuncName}Safe({inputParams});
+
+    /// <summary>
+    /// Delegate pointing to <see cref=""{meta.FuncName}""/>.
+    /// </summary>
     public delegate ValueTask<{meta.ReturnSubTypeName}> {meta.FuncName}Unsafe({inputParams});
+
+    /// <summary>
+    /// Delegate pointing to <see cref=""{meta.FuncName}""/>.
+    /// </summary>
+    public delegate ValueTask<{meta.ReturnSubTypeName}> {meta.FuncName}Func({inputParams});
     {outerClassEnd}
 }}
 
@@ -108,6 +124,16 @@ namespace TheUtils.DependencyInjection
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Unsafe),
                 factory: x => new {parentClassPrefix}{meta.FuncName}Unsafe(
+                    async ({inputAsLambdaParams}) => await 
+                        Transform(() =>
+                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                        ).Run().ThrowIfFail()
+                ),
+                lifetime));
+
+            services.Add(new(
+                serviceType: typeof({parentClassPrefix}{meta.FuncName}Func),
+                factory: x => new {parentClassPrefix}{meta.FuncName}Func(
                     async ({inputAsLambdaParams}) => await 
                         Transform(() =>
                             x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})

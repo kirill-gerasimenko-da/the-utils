@@ -3,11 +3,11 @@
     <PropertyGroup>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-        <LangVersion>11</LangVersion>
+        <LangVersion>12</LangVersion>
         <AssemblyName>TheUtils</AssemblyName>
         <RootNamespace>TheUtils</RootNamespace>
 
-        <PackageVersion>0.0.1</PackageVersion>
+        <PackageVersion>0.0.140</PackageVersion>
         <Title>Utilities set</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>Just a collection of useful opiniated extension methods</Description>
@@ -18,14 +18,14 @@
         <PackageTags>language-ext utils</PackageTags>
         <PackageId>TheUtils</PackageId>
         <Product>TheUtils</Product>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFramework>net8.0</TargetFramework>
 
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="LanguageExt.Core" Version="4.4.7" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="7.0.0" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
         <PackageReference Include="System.Linq.Async" Version="6.0.1" />
     </ItemGroup>
