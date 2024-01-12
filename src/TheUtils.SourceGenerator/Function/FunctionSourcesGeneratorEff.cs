@@ -103,40 +103,40 @@ namespace TheUtils.DependencyInjection
 
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Eff),
-                factory: x => new {parentClassPrefix}{meta.FuncName}Eff(
+                factory: __x__ => new {parentClassPrefix}{meta.FuncName}Eff(
                     ({inputAsLambdaParams}) =>
                         Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                            __x__.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         )
                 ),
                 lifetime));
 
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Safe),
-                factory: x => new {parentClassPrefix}{meta.FuncName}Safe(
+                factory: __x__ => new {parentClassPrefix}{meta.FuncName}Safe(
                     ({inputAsLambdaParams}) => 
                         Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                            __x__.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         ).Run()
                 ),
                 lifetime));
 
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Unsafe),
-                factory: x => new {parentClassPrefix}{meta.FuncName}Unsafe(
+                factory: __x__ => new {parentClassPrefix}{meta.FuncName}Unsafe(
                     ({inputAsLambdaParams}) => 
                         Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                            __x__.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         ).Run().ThrowIfFail()
                 ),
                 lifetime));
 
             services.Add(new(
                 serviceType: typeof({parentClassPrefix}{meta.FuncName}Func),
-                factory: x => new {parentClassPrefix}{meta.FuncName}Func(
+                factory: __x__ => new {parentClassPrefix}{meta.FuncName}Func(
                     ({inputAsLambdaParams}) => 
                         Transform(() =>
-                            x.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
+                            __x__.GetRequiredService<{parentClassPrefix}{meta.FuncName}>().Invoke({inputAsLambdaParams})
                         ).Run().ThrowIfFail()
                 ),
                 lifetime));
