@@ -7,7 +7,7 @@
         <AssemblyName>TheUtils</AssemblyName>
         <RootNamespace>TheUtils</RootNamespace>
 
-        <PackageVersion>0.0.140</PackageVersion>
+        <PackageVersion>1.0.145</PackageVersion>
         <Title>Utilities set</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>Just a collection of useful opiniated extension methods</Description>
