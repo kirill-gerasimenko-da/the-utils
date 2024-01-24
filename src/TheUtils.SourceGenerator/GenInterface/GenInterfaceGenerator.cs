@@ -93,7 +93,7 @@ public class GenInterfaceGenerator : IIncrementalGenerator
             var result = GenInterfaceSourcesGenerator.GenerateDelegates(cls);
 
             context.AddSource(
-                $"{cls.NamespaceName}.{cls.ClassName}.g.cs",
+                $"{cls.NamespaceName}.{cls.ClassName}.Interface.g.cs",
                 SourceText.From(result, Encoding.UTF8)
             );
         }

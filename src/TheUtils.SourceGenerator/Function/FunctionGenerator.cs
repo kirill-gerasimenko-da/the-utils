@@ -86,7 +86,7 @@ public class FunctionGenerator : IIncrementalGenerator
             else
             {
                 var result = FunctionSourcesGenerator.GenerateDelegates(del);
-                context.AddSource($"{del.NamespaceName}.{del.FuncName}.g.cs", SourceText.From(result, Encoding.UTF8));
+                context.AddSource($"{del.NamespaceName}.{del.FuncName}.Function.g.cs", SourceText.From(result, Encoding.UTF8));
             }
         }
     }
