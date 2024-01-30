@@ -11,7 +11,7 @@ public class GenInterfaceSourcesGenerator
                 ? $"public {(meta.ParentClassIsStatic ? "static" : "")} partial class {meta.ParentClassName} {{"
                 : "";
 
-        var outerClassEnd = meta.ParentClassName != null ? "    }" : "";
+        var outerClassEnd = meta.ParentClassName != null ? "}" : "";
 
         var methods = string.Join(
             "\n",
