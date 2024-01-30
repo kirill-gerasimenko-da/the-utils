@@ -107,8 +107,10 @@ public class GenInterfaceGenerator : IIncrementalGenerator
     {
         var classesForGeneration = new List<ClassMetadata>();
 
-        var recordAttribute = compilation.GetTypeByMetadataName("TheUtils.GenInterfaceAttribute");
-        if (recordAttribute == null)
+        if (
+            compilation.GetTypeByMetadataName("TheUtils.GenInterfaceAttribute") == null
+            && compilation.GetTypeByMetadataName("TheUtils.GenerateInterfaceAttribute") == null
+        )
             return classesForGeneration;
 
         foreach (var classDeclarationSyntax in classes)
@@ -159,6 +161,7 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                             }
                         );
                     }
+
                     class_.Methods.Add(meth);
                 }
             }
@@ -194,7 +197,11 @@ public class GenInterfaceGenerator : IIncrementalGenerator
             var attributeContainingTypeSymbol = attributeSymbol.ContainingType;
             var fullName = attributeContainingTypeSymbol.ToDisplayString();
 
-            if (fullName == "TheUtils.GenInterfaceAttribute")
+            if (
+                fullName
+                is "TheUtils.GenInterfaceAttribute"
+                    or "TheUtils.GenerateInterfaceAttribute"
+            )
                 return classDeclarationSyntax;
         }
 
