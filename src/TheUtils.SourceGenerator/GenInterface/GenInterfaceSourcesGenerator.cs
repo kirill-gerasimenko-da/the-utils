@@ -23,13 +23,12 @@ public class GenInterfaceSourcesGenerator
                 );
 
                 return @$"
-    /// <summary>
-    /// <inheritdoc cref=""{meta.ClassName}.{meth.Name}"" />
-    /// </summary>
-    {meth.ReturnType} {meth.Name}(
-        {inputParams}
-    );
-
+        /// <summary>
+        /// <inheritdoc cref=""{meta.ClassName}.{meth.Name}"" />
+        /// </summary>
+        {meth.ReturnType} {meth.Name}(
+            {inputParams}
+        );
                 ";
             })
         );
