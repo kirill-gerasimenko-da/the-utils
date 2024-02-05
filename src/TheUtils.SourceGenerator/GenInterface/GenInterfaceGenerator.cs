@@ -162,6 +162,8 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                             {
                                 Name = p.Name,
                                 TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
+                                Default = def,
+                                IsDefault = def != null
                             }
                         );
                     }
