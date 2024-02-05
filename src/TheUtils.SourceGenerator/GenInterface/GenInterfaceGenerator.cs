@@ -21,6 +21,8 @@ public record InputParameter
 {
     public string Name { get; set; }
     public string TypeName { get; set; }
+    public bool IsDefault { get; set; }
+    public string Default { get; set; }
 }
 
 public record ClassMetadata
@@ -153,6 +155,8 @@ public class GenInterfaceGenerator : IIncrementalGenerator
 
                     foreach (var p in msr.Parameters)
                     {
+                        var def = GetDefaultValue(p);
+
                         meth.Parameters.Add(
                             new InputParameter
                             {
@@ -176,6 +180,16 @@ public class GenInterfaceGenerator : IIncrementalGenerator
         }
 
         return classesForGeneration;
+    }
+
+    static string GetDefaultValue(IParameterSymbol p)
+    {
+        string def = null;
+
+        if (p.DeclaringSyntaxReferences[0].GetSyntax() is ParameterSyntax { Default: not null } syn)
+            def = syn.Default.ToFullString();
+
+        return def;
     }
 
     static bool IsSyntaxTargetForGeneration(SyntaxNode node) =>

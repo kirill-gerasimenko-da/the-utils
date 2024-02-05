@@ -19,7 +19,9 @@ public class GenInterfaceSourcesGenerator
             {
                 var inputParams = string.Join(
                     ", ",
-                    meth.Parameters.Select(p => $"{p.TypeName} {p.Name}")
+                    meth.Parameters.Select(p =>
+                        $"{p.TypeName} {p.Name} {(p.IsDefault ? p.Default : "")}"
+                    )
                 );
 
                 return @$"
