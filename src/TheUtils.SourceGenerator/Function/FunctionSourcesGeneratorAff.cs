@@ -18,26 +18,30 @@ public static class FunctionSourcesGeneratorAff
 
     public static string GenerateAff(FuncAff meta)
     {
-        var outerClassBegin = meta.ParentClassName != null
-            ? $@"public {(meta.ParentClassIsStatic ? "static" : "")} partial class {meta.ParentClassName}
+        var outerClassBegin =
+            meta.ParentClassName != null
+                ? $@"public {(meta.ParentClassIsStatic ? "static" : "")} partial class {meta.ParentClassName}
     {{
 "
-            : "";
+                : "";
 
         var outerClassEnd = meta.ParentClassName != null ? "}" : "";
 
         var parentClassPrefix = meta.ParentClassName != null ? $"{meta.ParentClassName}." : "";
 
-        var inputParams = string.Join(", ", meta
-            .Parameters
-            .Select(p => $"{p.TypeName} {char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
+        var inputParams = string.Join(
+            ", ",
+            meta.Parameters.Select(p =>
+                $"{p.TypeName} {char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)} {(p.IsDefault ? p.Default : "")}"
+            )
+        );
 
-        var inputTypes = string.Join(", ", meta
-            .Parameters
-            .Select(p => p.TypeName));
+        var inputTypes = string.Join(", ", meta.Parameters.Select(p => p.TypeName));
 
-        var inputAsLambdaParams = string.Join(", ", meta.Parameters
-            .Select(p => $"{char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}"));
+        var inputAsLambdaParams = string.Join(
+            ", ",
+            meta.Parameters.Select(p => $"{char.ToLowerInvariant(p.Name[0]) + p.Name.Substring(1)}")
+        );
 
         return @$"
 #pragma warning disable CS0105
