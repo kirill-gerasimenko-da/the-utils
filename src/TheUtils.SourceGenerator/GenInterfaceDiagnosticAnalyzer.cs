@@ -2,14 +2,15 @@ namespace TheUtils.SourceGenerator;
 
 using System.Collections.Immutable;
 using System.Linq;
-using GenInterface;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
+#pragma warning disable RS1036
 public class GenInterfaceDiagnosticAnalyzer : DiagnosticAnalyzer
+#pragma warning restore RS1036
 {
     public override void Initialize(AnalysisContext context)
     {
@@ -56,8 +57,8 @@ public class GenInterfaceDiagnosticAnalyzer : DiagnosticAnalyzer
         if (semanticModel.GetDeclaredSymbol(classDeclarationSyntax) is not { } classSymbol)
             return;
 
-        var isPartial = classDeclarationSyntax.Modifiers.Any(
-            m => m.IsKind(SyntaxKind.PartialKeyword)
+        var isPartial = classDeclarationSyntax.Modifiers.Any(m =>
+            m.IsKind(SyntaxKind.PartialKeyword)
         );
 
         if (!isPartial)
