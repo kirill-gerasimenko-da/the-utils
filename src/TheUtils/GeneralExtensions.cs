@@ -45,15 +45,6 @@ public static class GeneralExtensions
 
     public static void Ignore(this Unit _) { }
 
-    // transformers
-    public static Seq<T> Choose<T>(this Seq<Option<T>> seq) => seq.Choose(identity);
-
-    public static Seq<T> TraverseChoose<T>(this Option<Seq<T>> opt) =>
-        opt.Traverse(identity).As().Choose();
-
-    public static Seq<Option<A>> Traverse<A>(this Option<Seq<A>> opt) =>
-        opt.Traverse(identity).As();
-
     // errors
     public static async ValueTask<T> ThrowIfFail<T>(this ValueTask<Fin<T>> task) =>
         (await task).ThrowIfFail();
