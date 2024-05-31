@@ -19,15 +19,31 @@
    "-c" "Release"])
 
 (run "."
+  ["dotnet" "build"
+   "./src/TheUtils.Persistence/TheUtils.Persistence.csproj"
+   "-c" "Release"])
+
+(run "."
   ["dotnet" "pack"
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.13"])
+   "/p:PackageVersion=1.0.14"])
 
 (run "."
   ["dotnet" "pack"
    "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.13"])
+   "/p:PackageVersion=1.0.14"])
+
+
+(run "."
+  ["dotnet" "pack"
+   "./src/TheUtils.Persistence/TheUtils.Persistence.csproj"
+   "-c" "Release"
+   "-o" "./publish"
+   "/p:PackageVersion=1.0.14"])
+
+   
+

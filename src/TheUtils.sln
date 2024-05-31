@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils", "TheUtils\TheUti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.SourceGenerator", "TheUtils.SourceGenerator\TheUtils.SourceGenerator.csproj", "{17181411-6656-4491-8D15-DAD41E4B2772}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Persistence", "TheUtils.Persistence\TheUtils.Persistence.csproj", "{99FC5F1C-85D9-4C2E-BBD8-E02D0794EA1D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{17181411-6656-4491-8D15-DAD41E4B2772}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{17181411-6656-4491-8D15-DAD41E4B2772}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{17181411-6656-4491-8D15-DAD41E4B2772}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99FC5F1C-85D9-4C2E-BBD8-E02D0794EA1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99FC5F1C-85D9-4C2E-BBD8-E02D0794EA1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99FC5F1C-85D9-4C2E-BBD8-E02D0794EA1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99FC5F1C-85D9-4C2E-BBD8-E02D0794EA1D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
