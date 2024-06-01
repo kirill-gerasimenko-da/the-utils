@@ -2,6 +2,8 @@
 
 using LanguageExt;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using static LanguageExt.Prelude;
 
 public static class Ef
@@ -19,24 +21,51 @@ public static class Ef
         where Env : HasDbContext
         where A : class => liftEff<Env, DbSet<A>>(rt => rt.DbContext.Set<A>());
 
-    public static Eff<Env, Unit> add<Env, A>(A a)
+    public static Eff<Env, DbContext> ctx<Env>()
+        where Env : HasDbContext => liftEff<Env, DbContext>(rt => rt.DbContext);
+
+    public static Eff<Env, DatabaseFacade> facade<Env>()
+        where Env : HasDbContext => liftEff<Env, DatabaseFacade>(rt => rt.DbContext.Database);
+
+    public static Eff<Env, EntityEntry<A>> add<Env, A>(A a)
         where Env : HasDbContext
         where A : class =>
         from items in set<Env, A>()
-        from _ in liftIO(async rt => await items.AddAsync(a, rt.Token))
+        from entry in liftIO(async rt => await items.AddAsync(a, rt.Token))
+        select entry;
+
+    public static Eff<Env, Unit> addRange<Env, A>(Seq<A> a)
+        where Env : HasDbContext
+        where A : class =>
+        from items in set<Env, A>()
+        from _ in liftIO(async rt => await items.AddRangeAsync(a, rt.Token))
         select unit;
 
-    public static Eff<Env, Unit> update<Env, A>(A a)
+    public static Eff<Env, EntityEntry<A>> update<Env, A>(A a)
         where Env : HasDbContext
         where A : class =>
         from items in set<Env, A>()
-        from _ in liftEff(() => items.Update(a))
+        from entry in liftEff(() => items.Update(a))
+        select entry;
+
+    public static Eff<Env, Unit> updateRange<Env, A>(Seq<A> a)
+        where Env : HasDbContext
+        where A : class =>
+        from items in set<Env, A>()
+        from _ in liftEff(() => items.UpdateRange(a))
         select unit;
 
-    public static Eff<Env, Unit> delete<Env, A>(A a)
+    public static Eff<Env, EntityEntry<A>> delete<Env, A>(A a)
         where Env : HasDbContext
         where A : class =>
         from items in set<Env, A>()
-        from _ in liftEff(() => items.Remove(a))
+        from entry in liftEff(() => items.Remove(a))
+        select entry;
+
+    public static Eff<Env, Unit> deleteRange<Env, A>(Seq<A> a)
+        where Env : HasDbContext
+        where A : class =>
+        from items in set<Env, A>()
+        from _ in liftEff(() => items.RemoveRange(a))
         select unit;
 }
