@@ -8,6 +8,11 @@ using static LanguageExt.Prelude;
 
 public static class Ef
 {
+    public interface HasDbContext
+    {
+        DbContext DbContext { get; }
+    }
+
     public static Eff<Env, Seq<A>> all<Env, A>(IQueryable<A> query) =>
         liftIO(async rt => toSeq(await query.ToListAsync(rt.Token)));
 
