@@ -28,14 +28,14 @@
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.17"])
+   "/p:PackageVersion=1.0.18"])
 
 (run "."
   ["dotnet" "pack"
    "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.17"])
+   "/p:PackageVersion=1.0.18"])
 
 
 (run "."
@@ -43,7 +43,7 @@
    "./src/TheUtils.Persistence/TheUtils.Persistence.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.17"])
+   "/p:PackageVersion=1.0.18"])
 
    
 
