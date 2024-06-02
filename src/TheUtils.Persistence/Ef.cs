@@ -13,8 +13,11 @@ public static class Ef
         DbContext DbContext { get; }
     }
 
-    public static Eff<Env, Seq<A>> all<Env, A>(IQueryable<A> query) =>
+    public static Eff<Env, Seq<A>> seq<Env, A>(IQueryable<A> query) =>
         liftIO(async rt => toSeq(await query.ToListAsync(rt.Token)));
+
+    public static Eff<Env, bool> any<Env, A>(IQueryable<A> query) =>
+        liftIO(async rt => await query.AnyAsync(rt.Token));
 
     public static Eff<Env, Option<A>> head<Env, A>(IQueryable<A> query) =>
         liftIO(async rt => Optional(await query.FirstOrDefaultAsync(rt.Token)));
