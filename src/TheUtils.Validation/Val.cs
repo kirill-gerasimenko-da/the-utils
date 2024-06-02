@@ -7,7 +7,7 @@ using LanguageExt;
 using LanguageExt.Common;
 using static LanguageExt.Prelude;
 
-public static class Validation
+public static class Val
 {
     public delegate void Validator<A>(AbstractValidator<A> validator);
 
