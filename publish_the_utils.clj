@@ -33,21 +33,21 @@
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.21"])
+   "/p:PackageVersion=1.0.22"])
 
 (run "."
   ["dotnet" "pack"
    "./src/TheUtils.Validation/TheUtils.Validation.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.21"])
+   "/p:PackageVersion=1.0.22"])
 
 (run "."
   ["dotnet" "pack"
    "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.21"])
+   "/p:PackageVersion=1.0.22"])
 
 
 (run "."
@@ -55,7 +55,7 @@
    "./src/TheUtils.Persistence/TheUtils.Persistence.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.21"])
+   "/p:PackageVersion=1.0.22"])
 
    
 

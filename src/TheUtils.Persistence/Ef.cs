@@ -64,10 +64,14 @@ public static class Ef
         )
         select count;
 
-    public static Eff<Env, IDbContextTransaction> beginTransaction<Env>()
+    public static Eff<Env, IDbContextTransaction> beginTransaction<Env>(
+        System.Data.IsolationLevel isolation = System.Data.IsolationLevel.Unspecified
+    )
         where Env : HasDbContext =>
         from facade in facade<Env>()
-        from tran in liftEff(async rt => await facade.BeginTransactionAsync(rt.EnvIO.Token))
+        from tran in liftEff(async rt =>
+            await facade.BeginTransactionAsync(isolation, rt.EnvIO.Token)
+        )
         select tran;
 
     public static Eff<Env, Unit> commitTransaction<Env>()
