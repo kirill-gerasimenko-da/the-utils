@@ -52,7 +52,7 @@ public static class Ef
         where Env : HasDbContext =>
         from facade in facade<Env>()
         from count in liftEff(async rt =>
-            await facade.ExecuteSqlRawAsync(sql, @params, rt.EnvIO.Token)
+            await facade.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.EnvIO.Token)
         )
         select count;
 
@@ -84,7 +84,7 @@ public static class Ef
     public static Eff<Env, IQueryable<A>> query<Env, A>(string sql, Seq<object> @params)
         where Env : HasDbContext =>
         from facade in facade<Env>()
-        select facade.SqlQueryRaw<A>(sql, @params);
+        select facade.SqlQueryRaw<A>(sql, @params.ToArray());
 
     public static Eff<Env, EntityEntry<A>> add<Env, A>(A a)
         where Env : HasDbContext
