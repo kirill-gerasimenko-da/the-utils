@@ -32,6 +32,12 @@ public static class Ef
     public static Eff<Env, DbContext> ctx<Env>()
         where Env : HasDbContext => liftEff<Env, DbContext>(rt => rt.DbContext);
 
+    public static Eff<Env, int> saveChanges<Env>()
+        where Env : HasDbContext =>
+        from ctx in ctx<Env>()
+        from count in liftEff(async rt => await ctx.SaveChangesAsync(rt.EnvIO.Token))
+        select count;
+
     public static Eff<Env, DatabaseFacade> facade<Env>()
         where Env : HasDbContext => liftEff<Env, DatabaseFacade>(rt => rt.DbContext.Database);
 
