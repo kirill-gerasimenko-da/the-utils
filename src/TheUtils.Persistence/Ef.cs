@@ -4,6 +4,7 @@ using LanguageExt;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using static LanguageExt.Prelude;
 
 public static class Ef
@@ -40,6 +41,54 @@ public static class Ef
 
     public static Eff<Env, DatabaseFacade> facade<Env>()
         where Env : HasDbContext => liftEff<Env, DatabaseFacade>(rt => rt.DbContext.Database);
+
+    public static Eff<Env, int> execute<Env>(FormattableString sql)
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        from count in liftEff(async rt => await facade.ExecuteSqlAsync(sql, rt.EnvIO.Token))
+        select count;
+
+    public static Eff<Env, int> executeInterpolated<Env>(FormattableString sql)
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        from count in liftEff(async rt =>
+            await facade.ExecuteSqlInterpolatedAsync(sql, rt.EnvIO.Token)
+        )
+        select count;
+
+    public static Eff<Env, int> executeRaw<Env>(string sql, Seq<object> @params)
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        from count in liftEff(async rt =>
+            await facade.ExecuteSqlRawAsync(sql, @params, rt.EnvIO.Token)
+        )
+        select count;
+
+    public static Eff<Env, IDbContextTransaction> beginTransaction<Env>()
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        from tran in liftEff(async rt => await facade.BeginTransactionAsync(rt.EnvIO.Token))
+        select tran;
+
+    public static Eff<Env, Unit> commitTransaction<Env>()
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        from _ in liftEff(async rt => await facade.CommitTransactionAsync(rt.EnvIO.Token))
+        select unit;
+
+    public static Eff<Env, Unit> rollbackTransaction<Env>()
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        from _ in liftEff(async rt => await facade.RollbackTransactionAsync(rt.EnvIO.Token))
+        select unit;
+
+    public static Eff<Env, IQueryable<A>> query<Env, A>(FormattableString sql)
+        where Env : HasDbContext => from facade in facade<Env>() select facade.SqlQuery<A>(sql);
+
+    public static Eff<Env, IQueryable<A>> query<Env, A>(string sql, Seq<object> @params)
+        where Env : HasDbContext =>
+        from facade in facade<Env>()
+        select facade.SqlQueryRaw<A>(sql, @params);
 
     public static Eff<Env, EntityEntry<A>> add<Env, A>(A a)
         where Env : HasDbContext
