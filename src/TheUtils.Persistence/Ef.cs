@@ -48,14 +48,6 @@ public static class Ef
         from count in liftEff(async rt => await facade.ExecuteSqlAsync(sql, rt.EnvIO.Token))
         select count;
 
-    public static Eff<Env, int> executeInterpolated<Env>(FormattableString sql)
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        from count in liftEff(async rt =>
-            await facade.ExecuteSqlInterpolatedAsync(sql, rt.EnvIO.Token)
-        )
-        select count;
-
     public static Eff<Env, int> executeRaw<Env>(string sql, Seq<object> @params)
         where Env : HasDbContext =>
         from facade in facade<Env>()
