@@ -1,130 +1,96 @@
 ﻿namespace TheUtils.Persistence;
 
+using System.Data;
 using LanguageExt;
+using LanguageExt.Traits;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using static LanguageExt.Prelude;
 
-public static class Ef
+public static class Ef<M, RT>
+    where RT : Has<M, DbContext>
+    where M : Monad<M>, Fallible<M>
 {
-    public interface HasDbContext
-    {
-        DbContext DbContext { get; }
-    }
+    public static K<M, DbContext> context => RT.Ask;
 
-    public static Eff<Env, Seq<A>> seq<Env, A>(IQueryable<A> query) =>
-        liftIO(async rt => toSeq(await query.ToListAsync(rt.Token)));
+    public static K<M, DatabaseFacade> facade => context.Map(c => c.Database);
 
-    public static Eff<Env, bool> any<Env, A>(IQueryable<A> query) =>
-        liftIO(async rt => await query.AnyAsync(rt.Token));
+    public static K<M, DbSet<A>> set<A>()
+        where A : class => context.Map(c => c.Set<A>());
 
-    public static Eff<Env, Option<A>> head<Env, A>(IQueryable<A> query) =>
-        liftIO(async rt => Optional(await query.FirstOrDefaultAsync(rt.Token)));
+    public static K<M, int> saveChanges =>
+        from c in context
+        from n in liftIO(async rt => await c.SaveChangesAsync(rt.Token))
+        select n;
 
-    public static OptionT<Eff<Env>, A> headT<Env, A>(IQueryable<A> query) =>
-        liftIO(async rt => Optional(await query.FirstOrDefaultAsync(rt.Token)));
+    public static K<M, int> execute(FormattableString sql) =>
+        from f in facade
+        from n in liftIO(async rt => await f.ExecuteSqlAsync(sql, rt.Token))
+        select n;
 
-    public static Eff<Env, DbSet<A>> set<Env, A>()
-        where Env : HasDbContext
-        where A : class => liftEff<Env, DbSet<A>>(rt => rt.DbContext.Set<A>());
+    public static K<M, int> executeRaw(string sql, Seq<object> @params) =>
+        from f in facade
+        from n in liftIO(async rt => await f.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.Token))
+        select n;
 
-    public static Eff<Env, DbContext> ctx<Env>()
-        where Env : HasDbContext => liftEff<Env, DbContext>(rt => rt.DbContext);
+    public static K<M, IDbContextTransaction> beginTransaction(
+        IsolationLevel isolation = IsolationLevel.Unspecified
+    ) =>
+        from f in facade
+        from t in liftIO(async rt => await f.BeginTransactionAsync(isolation, rt.Token))
+        select t;
 
-    public static Eff<Env, int> saveChanges<Env>()
-        where Env : HasDbContext =>
-        from ctx in ctx<Env>()
-        from count in liftEff(async rt => await ctx.SaveChangesAsync(rt.EnvIO.Token))
-        select count;
-
-    public static Eff<Env, DatabaseFacade> facade<Env>()
-        where Env : HasDbContext => liftEff<Env, DatabaseFacade>(rt => rt.DbContext.Database);
-
-    public static Eff<Env, int> execute<Env>(FormattableString sql)
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        from count in liftEff(async rt => await facade.ExecuteSqlAsync(sql, rt.EnvIO.Token))
-        select count;
-
-    public static Eff<Env, int> executeRaw<Env>(string sql, Seq<object> @params)
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        from count in liftEff(async rt =>
-            await facade.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.EnvIO.Token)
-        )
-        select count;
-
-    public static Eff<Env, IDbContextTransaction> beginTransaction<Env>(
-        System.Data.IsolationLevel isolation = System.Data.IsolationLevel.Unspecified
-    )
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        from tran in liftEff(async rt =>
-            await facade.BeginTransactionAsync(isolation, rt.EnvIO.Token)
-        )
-        select tran;
-
-    public static Eff<Env, Unit> commitTransaction<Env>()
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        from _ in liftEff(async rt => await facade.CommitTransactionAsync(rt.EnvIO.Token))
+    public static K<M, Unit> commitTransaction =>
+        from f in facade
+        from _ in liftIO(async rt => await f.CommitTransactionAsync(rt.Token))
         select unit;
 
-    public static Eff<Env, Unit> rollbackTransaction<Env>()
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        from _ in liftEff(async rt => await facade.RollbackTransactionAsync(rt.EnvIO.Token))
+    public static K<M, Unit> rollbackTransaction =>
+        from f in facade
+        from _ in liftIO(async rt => await f.RollbackTransactionAsync(rt.Token))
         select unit;
 
-    public static Eff<Env, IQueryable<A>> query<Env, A>(FormattableString sql)
-        where Env : HasDbContext => from facade in facade<Env>() select facade.SqlQuery<A>(sql);
+    public static K<M, IQueryable<A>> query<A>(FormattableString sql) =>
+        facade.Map(x => x.SqlQuery<A>(sql));
 
-    public static Eff<Env, IQueryable<A>> query<Env, A>(string sql, Seq<object> @params)
-        where Env : HasDbContext =>
-        from facade in facade<Env>()
-        select facade.SqlQueryRaw<A>(sql, @params.ToArray());
+    public static K<M, IQueryable<A>> query<A>(string sql, Seq<object> @params) =>
+        facade.Map(x => x.SqlQueryRaw<A>(sql, @params.ToArray()));
 
-    public static Eff<Env, EntityEntry<A>> add<Env, A>(A a)
-        where Env : HasDbContext
+    public static K<M, EntityEntry<A>> add<A>(A a)
         where A : class =>
-        from items in set<Env, A>()
-        from entry in liftIO(async rt => await items.AddAsync(a, rt.Token))
-        select entry;
+        from s in set<A>()
+        from e in liftIO(async rt => await s.AddAsync(a, rt.Token))
+        select e;
 
-    public static Eff<Env, Unit> addRange<Env, A>(Seq<A> a)
-        where Env : HasDbContext
+    public static K<M, Unit> addRange<A>(Seq<A> a)
         where A : class =>
-        from items in set<Env, A>()
-        from _ in liftIO(async rt => await items.AddRangeAsync(a, rt.Token))
+        from s in set<A>()
+        from _ in liftIO(async rt => await s.AddRangeAsync(a, rt.Token))
         select unit;
 
-    public static Eff<Env, EntityEntry<A>> update<Env, A>(A a)
-        where Env : HasDbContext
-        where A : class =>
-        from items in set<Env, A>()
-        from entry in liftEff(() => items.Update(a))
-        select entry;
+    public static K<M, EntityEntry<A>> update<A>(A a)
+        where A : class => set<A>().Map(x => x.Update(a));
 
-    public static Eff<Env, Unit> updateRange<Env, A>(Seq<A> a)
-        where Env : HasDbContext
+    public static K<M, Unit> updateRange<A>(Seq<A> a)
         where A : class =>
-        from items in set<Env, A>()
-        from _ in liftEff(() => items.UpdateRange(a))
-        select unit;
+        set<A>()
+            .Map(x =>
+            {
+                x.UpdateRange(a);
+                return unit;
+            });
 
-    public static Eff<Env, EntityEntry<A>> delete<Env, A>(A a)
-        where Env : HasDbContext
-        where A : class =>
-        from items in set<Env, A>()
-        from entry in liftEff(() => items.Remove(a))
-        select entry;
+    public static K<M, EntityEntry<A>> delete<A>(A a)
+        where A : class => set<A>().Map(x => x.Remove(a));
 
-    public static Eff<Env, Unit> deleteRange<Env, A>(Seq<A> a)
-        where Env : HasDbContext
+    public static K<M, Unit> deleteRange<A>(Seq<A> a)
         where A : class =>
-        from items in set<Env, A>()
-        from _ in liftEff(() => items.RemoveRange(a))
-        select unit;
+        set<A>()
+            .Map(x =>
+            {
+                x.RemoveRange(a);
+                return unit;
+            });
 }
