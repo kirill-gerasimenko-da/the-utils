@@ -17,6 +17,24 @@ public static class Ef<M, RT>
 
     public static K<M, DatabaseFacade> facade => context.Map(c => c.Database);
 
+    public static K<M, Seq<A>> seq<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(io => query.ToListAsync(io.Token)).Map(toSeq)
+        select r;
+
+    public static K<M, bool> any<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(rt => query.AnyAsync(rt.Token))
+        select r;
+
+    public static K<M, Option<A>> head<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
+        select r;
+
+    public static OptionT<M, A> headT<A>(IQueryable<A> query) =>
+        liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
+
     public static K<M, DbSet<A>> set<A>()
         where A : class => context.Map(c => c.Set<A>());
 
