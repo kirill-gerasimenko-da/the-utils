@@ -1,6 +1,7 @@
 ﻿namespace TheUtils.Persistence;
 
 using System.Data;
+using System.Data.Common;
 using LanguageExt;
 using LanguageExt.Traits;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +49,7 @@ public static class Ef<M, RT>
         from n in liftIO(async rt => await f.ExecuteSqlAsync(sql, rt.Token))
         select n;
 
-    public static K<M, int> executeRaw(string sql, Seq<object> @params) =>
+    public static K<M, int> executeRaw(string sql, Seq<object> @params = default) =>
         from f in facade
         from n in liftIO(async rt => await f.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.Token))
         select n;
@@ -70,11 +71,31 @@ public static class Ef<M, RT>
         from _ in liftIO(async rt => await f.RollbackTransactionAsync(rt.Token))
         select unit;
 
+    public static K<M, Unit> useTransaction(DbTransaction transaction) =>
+        from f in facade
+        from _ in liftIO(async rt => await f.UseTransactionAsync(transaction, rt.Token))
+        select unit;
+
     public static K<M, IQueryable<A>> query<A>(FormattableString sql) =>
         facade.Map(x => x.SqlQuery<A>(sql));
 
-    public static K<M, IQueryable<A>> query<A>(string sql, Seq<object> @params) =>
+    public static K<M, IQueryable<A>> query<A>(string sql, Seq<object> @params = default) =>
         facade.Map(x => x.SqlQueryRaw<A>(sql, @params.ToArray()));
+
+    public static K<M, Seq<A>> querySeq<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in seq(q)
+        select r;
+
+    public static K<M, bool> queryAny<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in any(q)
+        select r;
+
+    public static K<M, Option<A>> queryHead<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in head(q)
+        select r;
 
     public static K<M, EntityEntry<A>> add<A>(A a)
         where A : class =>
