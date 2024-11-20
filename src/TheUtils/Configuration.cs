@@ -9,21 +9,34 @@ using LanguageExt.UnsafeValueAccess;
 using Microsoft.Extensions.Configuration;
 using static LanguageExt.Prelude;
 
-public static class ConfigurationExtensions
+public static class Configuration
 {
     public record ConfigError(string ParamName, string ReasonItIsInvalid)
-        : Expected($"'{ParamName}' is not valid: {ReasonItIsInvalid}", 1000);
+        : Expected($"'{ParamName}' is not valid: {ReasonItIsInvalid}", 1);
 
-    static Error empty(string paramName) => new ConfigError(paramName, "Value is either null or empty");
+    static Error empty(string paramName) =>
+        new ConfigError(paramName, "Value is either null or empty");
+
     static Error notValidUri(string paramName) => new ConfigError(paramName, "Invalid URI format");
+
     static Error notBoolean(string paramName) => new ConfigError(paramName, "Invalid boolean");
+
     static Error notInt(string paramName) => new ConfigError(paramName, "Invalid integer");
+
     static Error notLong(string paramName) => new ConfigError(paramName, "Invalid long");
+
     static Error notDecimal(string paramName) => new ConfigError(paramName, "Invalid decimal");
+
     static Error notDouble(string paramName) => new ConfigError(paramName, "Invalid double");
-    static Error notEnum<T>(string paramName) => new ConfigError(paramName, $"Invalid enum of type {typeof(T).Name}");
+
+    static Error notEnum<T>(string paramName) =>
+        new ConfigError(paramName, $"Invalid enum of type {typeof(T).Name}");
+
     static Error notTimeSpan(string paramName) => new ConfigError(paramName, "Invalid timespan");
-    static Error notDateTimeOffset(string paramName) => new ConfigError(paramName, "Invalid date time offset");
+
+    static Error notDateTimeOffset(string paramName) =>
+        new ConfigError(paramName, "Invalid date time offset");
+
     static Error notGuid(string paramName) => new ConfigError(paramName, "Invalid GUID");
 
     public static Eff<string> notEmpty(string value, Error error) =>
@@ -67,7 +80,8 @@ public static class ConfigurationExtensions
         from _ in guard(parsed.IsSome, notDouble(paramName))
         select parsed.ValueUnsafe();
 
-    public static Eff<T> readEnum<T>(string paramName, IConfiguration config) where T : struct =>
+    public static Eff<T> readEnum<T>(string paramName, IConfiguration config)
+        where T : struct =>
         from value in read(paramName, config)
         let parsed = parseEnumIgnoreCase<T>(value)
         from _ in guard(parsed.IsSome, notEnum<T>(paramName))

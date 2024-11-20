@@ -1,11 +1,11 @@
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace TheUtils;
+namespace TheUtils.Extensions;
 
 using LanguageExt;
 using static LanguageExt.Prelude;
 
-public static class StringExtensions
+public static partial class TheUtilsExtensions
 {
     public static Option<string> Substring(this string str, int start, int length) =>
         substring(str, start, length);

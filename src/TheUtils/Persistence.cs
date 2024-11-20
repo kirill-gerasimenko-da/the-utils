@@ -1,4 +1,4 @@
-﻿namespace TheUtils.Persistence;
+﻿namespace TheUtils;
 
 using System.Data;
 using LanguageExt;
@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using static LanguageExt.Prelude;
 
-public static class Ef<M, RT>
+public static class Persistence<M, RT>
     where RT : Has<M, DbContext>
     where M : Monad<M>, Fallible<M>
 {

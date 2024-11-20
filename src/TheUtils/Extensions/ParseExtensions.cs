@@ -1,22 +1,25 @@
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace TheUtils;
+namespace TheUtils.Extensions;
 
 using System.Text.RegularExpressions;
 using LanguageExt;
 using Newtonsoft.Json;
 using static LanguageExt.Prelude;
 
-public static class ParseExtensions
+public static partial class TheUtilsExtensions
 {
     static readonly Regex EmailRe =
         new(
-            @"^(([^<>()\[\]\.,;:\s@""]+(\.[^<>()\[\]\.,;:\s@""]+)*)|("".+""))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$");
+            @"^(([^<>()\[\]\.,;:\s@""]+(\.[^<>()\[\]\.,;:\s@""]+)*)|("".+""))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$"
+        );
 
     public static Option<Uri> ParseUri(this string uri) => parseUri(uri);
 
-    public static Option<T> ParseJson<T>(this string json, Option<JsonSerializerSettings> settings = default) =>
-        parseJson<T>(json, settings);
+    public static Option<T> ParseJson<T>(
+        this string json,
+        Option<JsonSerializerSettings> settings = default
+    ) => parseJson<T>(json, settings);
 
     public static Option<Uri> parseUri(string uri, UriKind kind = UriKind.Absolute)
     {
@@ -29,7 +32,10 @@ public static class ParseExtensions
         return None;
     }
 
-    public static Option<T> parseJson<T>(string json, Option<JsonSerializerSettings> settings = default)
+    public static Option<T> parseJson<T>(
+        string json,
+        Option<JsonSerializerSettings> settings = default
+    )
     {
         if (isEmpty(json))
             return None;

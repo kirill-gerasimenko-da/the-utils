@@ -1,4 +1,4 @@
-namespace TheUtils.SourceGenerator.GenInterface;
+namespace TheUtils.SourceGenerator;
 
 using System.Linq;
 

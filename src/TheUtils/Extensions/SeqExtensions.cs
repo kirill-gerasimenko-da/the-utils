@@ -1,9 +1,9 @@
-namespace TheUtils;
+namespace TheUtils.Extensions;
 
 using LanguageExt;
 using static LanguageExt.Prelude;
 
-public static class SeqExtensions
+public static partial class TheUtilsExtensions
 {
     public static Seq<T> flatten<T>(Seq<Seq<T>> seq) => seq.Flatten();
 

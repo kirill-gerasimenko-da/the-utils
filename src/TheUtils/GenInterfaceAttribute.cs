@@ -6,10 +6,4 @@ namespace TheUtils;
 /// <p>The class must be partial.</p>
 /// </summary>
 [AttributeUsage(AttributeTargets.Class)]
-public class GenInterfaceAttribute : Attribute;
-
-/// <summary>
-/// <inheritdoc cref="GenInterfaceAttribute"/>
-/// </summary>
-[AttributeUsage(AttributeTargets.Class)]
 public class GenerateInterfaceAttribute : Attribute;
