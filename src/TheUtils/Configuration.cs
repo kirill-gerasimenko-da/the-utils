@@ -11,33 +11,37 @@ using static LanguageExt.Prelude;
 
 public static class Configuration
 {
-    public record ConfigError(string ParamName, string ReasonItIsInvalid)
+    public record ConfigurationError(string ParamName, string ReasonItIsInvalid)
         : Expected($"'{ParamName}' is not valid: {ReasonItIsInvalid}", 1);
 
     static Error empty(string paramName) =>
-        new ConfigError(paramName, "Value is either null or empty");
+        new ConfigurationError(paramName, "Value is either null or empty");
 
-    static Error notValidUri(string paramName) => new ConfigError(paramName, "Invalid URI format");
+    static Error notValidUri(string paramName) =>
+        new ConfigurationError(paramName, "Invalid URI format");
 
-    static Error notBoolean(string paramName) => new ConfigError(paramName, "Invalid boolean");
+    static Error notBoolean(string paramName) =>
+        new ConfigurationError(paramName, "Invalid boolean");
 
-    static Error notInt(string paramName) => new ConfigError(paramName, "Invalid integer");
+    static Error notInt(string paramName) => new ConfigurationError(paramName, "Invalid integer");
 
-    static Error notLong(string paramName) => new ConfigError(paramName, "Invalid long");
+    static Error notLong(string paramName) => new ConfigurationError(paramName, "Invalid long");
 
-    static Error notDecimal(string paramName) => new ConfigError(paramName, "Invalid decimal");
+    static Error notDecimal(string paramName) =>
+        new ConfigurationError(paramName, "Invalid decimal");
 
-    static Error notDouble(string paramName) => new ConfigError(paramName, "Invalid double");
+    static Error notDouble(string paramName) => new ConfigurationError(paramName, "Invalid double");
 
     static Error notEnum<T>(string paramName) =>
-        new ConfigError(paramName, $"Invalid enum of type {typeof(T).Name}");
+        new ConfigurationError(paramName, $"Invalid enum of type {typeof(T).Name}");
 
-    static Error notTimeSpan(string paramName) => new ConfigError(paramName, "Invalid timespan");
+    static Error notTimeSpan(string paramName) =>
+        new ConfigurationError(paramName, "Invalid timespan");
 
     static Error notDateTimeOffset(string paramName) =>
-        new ConfigError(paramName, "Invalid date time offset");
+        new ConfigurationError(paramName, "Invalid date time offset");
 
-    static Error notGuid(string paramName) => new ConfigError(paramName, "Invalid GUID");
+    static Error notGuid(string paramName) => new ConfigurationError(paramName, "Invalid GUID");
 
     public static Eff<string> notEmpty(string value, Error error) =>
         Optional(value).Where(s => !string.IsNullOrWhiteSpace(s)).ToEff(error);
