@@ -19,43 +19,18 @@
    "-c" "Release"])
 
 (run "."
-  ["dotnet" "build"
-   "./src/TheUtils.Persistence/TheUtils.Persistence.csproj"
-   "-c" "Release"])
-
-(run "."
-  ["dotnet" "build"
-   "./src/TheUtils.Validation/TheUtils.Validation.csproj"
-   "-c" "Release"])
-
-(run "."
   ["dotnet" "pack"
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.26"])
-
-(run "."
-  ["dotnet" "pack"
-   "./src/TheUtils.Validation/TheUtils.Validation.csproj"
-   "-c" "Release"
-   "-o" "./publish"
-   "/p:PackageVersion=1.0.26"])
+   "/p:PackageVersion=2.0.1"])
 
 (run "."
   ["dotnet" "pack"
    "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=1.0.26"])
+   "/p:PackageVersion=2.0.1"])
 
-
-(run "."
-  ["dotnet" "pack"
-   "./src/TheUtils.Persistence/TheUtils.Persistence.csproj"
-   "-c" "Release"
-   "-o" "./publish"
-   "/p:PackageVersion=1.0.26"])
-
-   
+  
 
