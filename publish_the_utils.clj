@@ -23,14 +23,14 @@
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=2.0.1"])
+   "/p:PackageVersion=2.0.2"])
 
 (run "."
   ["dotnet" "pack"
    "./src/TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=2.0.1"])
+   "/p:PackageVersion=2.0.2"])
 
   
 

@@ -7,7 +7,7 @@ using static LanguageExt.Prelude;
 
 public static partial class TheUtilsExtensions
 {
-    public static IEnumerable<Seq<T>> Partition<T>(this IEnumerable<T> seq, int size) =>
+    public static Seq<Seq<T>> Partition<T>(this IEnumerable<T> seq, int size) =>
         partition(seq, size);
 
     public static Seq<Seq<T>> partition<T>(IEnumerable<T> seq, int size) =>

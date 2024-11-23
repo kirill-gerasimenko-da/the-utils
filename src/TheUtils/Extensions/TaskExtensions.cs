@@ -5,8 +5,6 @@ using static LanguageExt.Prelude;
 
 public static partial class TheUtilsExtensions
 {
-    public static Seq<T> flatten<T>(Seq<Seq<T>> seq) => seq.Flatten();
-
     public static async Task<Seq<T>> ToSeq<T>(
         this IAsyncEnumerable<T> source,
         CancellationToken token

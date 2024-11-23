@@ -13,9 +13,6 @@ public static partial class TheUtilsExtensions
 
     public static Option<string> NoneIfEmpty(this string s) => isEmpty(s) ? None : Some(s);
 
-    public static Option<string> NoneIfEmpty(this Option<string> s) =>
-        s.Bind(x => isEmpty(x) ? None : Some(x));
-
     public static bool IsSome<T>(this Option<T> o, out T value)
     {
         if (o.IsNone)
@@ -27,4 +24,11 @@ public static partial class TheUtilsExtensions
         value = o.ValueUnsafe();
         return true;
     }
+
+    public static T ifNoneDefault<T>(Option<T> opt)
+        where T : class => opt.IfNoneDefault();
+
+    public static Option<string> noneIfEmpty(string s) => s.NoneIfEmpty();
+
+    public static bool isSome<T>(Option<T> o, out T value) => o.IsSome(out value);
 }

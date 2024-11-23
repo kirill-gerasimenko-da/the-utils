@@ -2,18 +2,12 @@
 
 namespace TheUtils.Extensions;
 
-using System.Text.RegularExpressions;
 using LanguageExt;
 using Newtonsoft.Json;
 using static LanguageExt.Prelude;
 
 public static partial class TheUtilsExtensions
 {
-    static readonly Regex EmailRe =
-        new(
-            @"^(([^<>()\[\]\.,;:\s@""]+(\.[^<>()\[\]\.,;:\s@""]+)*)|("".+""))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$"
-        );
-
     public static Option<Uri> ParseUri(this string uri) => parseUri(uri);
 
     public static Option<T> ParseJson<T>(
@@ -48,17 +42,5 @@ public static partial class TheUtilsExtensions
         {
             return None;
         }
-    }
-
-    public static Option<string> parseEmail(string json)
-    {
-        if (isEmpty(json))
-            return None;
-
-        var match = EmailRe.Match(json);
-        if (match.Success)
-            return match.Value;
-
-        return None;
     }
 }
