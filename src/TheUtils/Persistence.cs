@@ -26,6 +26,11 @@ public static class Persistence<RT>
         from r in liftIO(rt => query.AnyAsync(rt.Token))
         select r;
 
+    public static Eff<RT, int> count<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(rt => query.CountAsync(rt.Token))
+        select r;
+
     public static Eff<RT, Option<A>> head<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
