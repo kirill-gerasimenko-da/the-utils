@@ -31,6 +31,11 @@ public static class Persistence<RT>
         from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
         select r;
 
+    public static Eff<RT, A> single<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(rt => query.SingleAsync(rt.Token))
+        select r;
+
     public static OptionT<Eff<RT>, A> headT<A>(IQueryable<A> query) =>
         liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
 
