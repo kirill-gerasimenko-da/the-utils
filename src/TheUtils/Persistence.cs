@@ -52,7 +52,7 @@ public static class Persistence<RT>
         from n in liftIO(async rt => await f.ExecuteSqlAsync(sql, rt.Token))
         select n;
 
-    public static Eff<RT, int> executeRaw(string sql, Seq<object> @params = default) =>
+    public static Eff<RT, int> execute(string sql, Seq<object> @params = default) =>
         from f in facade
         from n in liftIO(async rt => await f.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.Token))
         select n;
