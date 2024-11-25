@@ -47,7 +47,7 @@ public static class Persistence<RT>
         from n in liftIO(async rt => await f.ExecuteSqlAsync(sql, rt.Token))
         select n;
 
-    public static Eff<RT, int> executeRaw(string sql, Seq<object> @params) =>
+    public static Eff<RT, int> executeRaw(string sql, Seq<object> @params = default) =>
         from f in facade
         from n in liftIO(async rt => await f.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.Token))
         select n;
@@ -72,7 +72,7 @@ public static class Persistence<RT>
     public static Eff<RT, IQueryable<A>> query<A>(FormattableString sql) =>
         facade.Map(x => x.SqlQuery<A>(sql));
 
-    public static Eff<RT, IQueryable<A>> query<A>(string sql, Seq<object> @params) =>
+    public static Eff<RT, IQueryable<A>> query<A>(string sql, Seq<object> @params = default) =>
         facade.Map(x => x.SqlQueryRaw<A>(sql, @params.ToArray()));
 
     public static Eff<RT, EntityEntry<A>> add<A>(A a)
