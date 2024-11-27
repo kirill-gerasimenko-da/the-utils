@@ -7,30 +7,33 @@
         <AssemblyName>TheUtils</AssemblyName>
         <RootNamespace>TheUtils</RootNamespace>
 
-        <PackageVersion>1.0.145</PackageVersion>
+        <PackageVersion>1.0.145-beta</PackageVersion>
         <Title>Utilities set</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Description>Just a collection of useful opiniated extension methods</Description>
         <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
         <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
         <Authors>Kirill Gerasimenko</Authors>
-        <PackageLicenseUrl>https://github.com/kirill-gerasimenko-da/the-utils/blob/master/LICENSE</PackageLicenseUrl>
         <PackageTags>language-ext utils</PackageTags>
         <PackageId>TheUtils</PackageId>
         <Product>TheUtils</Product>
         <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
 
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="FluentValidation" Version="11.11.0" />
-        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-38" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="System.Linq.Async" Version="6.0.1" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
+        <None Include="../../LICENSE" Pack="true" PackagePath=""/>
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="FluentValidation" Version="11.11.0"/>
+        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-38"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0"/>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="System.Linq.Async" Version="6.0.1"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0"/>
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0"/>
     </ItemGroup>
 
 </Project>
