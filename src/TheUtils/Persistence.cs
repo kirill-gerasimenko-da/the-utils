@@ -16,33 +16,105 @@ public static class Persistence<RT>
 
     public static Eff<RT, DatabaseFacade> facade => context.Map(c => c.Database);
 
+    #region seq
     public static Eff<RT, Seq<A>> seq<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO(io => query.ToListAsync(io.Token)).Map(toSeq)
         select r;
 
+    public static Eff<RT, Seq<A>> seq<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in seq(q)
+        select r;
+
+    public static Eff<RT, Seq<A>> seq<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in seq(q)
+        select r;
+    #endregion
+
+    #region any
     public static Eff<RT, bool> any<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO(rt => query.AnyAsync(rt.Token))
         select r;
 
+    public static Eff<RT, bool> any<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in any(q)
+        select r;
+
+    public static Eff<RT, bool> any<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in any(q)
+        select r;
+    #endregion
+
+    #region count
     public static Eff<RT, int> count<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO(rt => query.CountAsync(rt.Token))
         select r;
 
+    public static Eff<RT, int> count<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in count(q)
+        select r;
+
+    public static Eff<RT, int> count<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in count(q)
+        select r;
+    #endregion
+
+    #region head
     public static Eff<RT, Option<A>> head<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
         select r;
 
+    public static Eff<RT, Option<A>> head<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in head(q)
+        select r;
+
+    public static Eff<RT, Option<A>> head<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in head(q)
+        select r;
+    #endregion
+
+    #region single
     public static Eff<RT, A> single<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO(rt => query.SingleAsync(rt.Token))
         select r;
 
+    public static Eff<RT, A> single<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in single(q)
+        select r;
+
+    public static Eff<RT, A> single<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in single(q)
+        select r;
+    #endregion
+
+    #region headT
     public static OptionT<Eff<RT>, A> headT<A>(IQueryable<A> query) =>
         liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
+
+    public static OptionT<Eff<RT>, A> headT<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in headT(q)
+        select r;
+
+    public static OptionT<Eff<RT>, A> headT<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in headT(q)
+        select r;
+    #endregion
 
     public static Eff<RT, DbSet<A>> set<A>()
         where A : class => context.Map(c => c.Set<A>());
