@@ -73,14 +73,44 @@ public static class Persistence<RT>
         from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
         select r;
 
+    public static Eff<RT, Option<A>> head<A>(IQueryable<A?> query) where A : struct =>
+        from _ in context
+        from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
+        select r;
+
     public static Eff<RT, Option<A>> head<A>(FormattableString sql) =>
         from q in query<A>(sql)
         from r in head(q)
         select r;
 
+    public static Eff<RT, Option<A>> headNullable<A>(FormattableString sql) where A : struct =>
+        from q in query<A?>(sql)
+        from r in head(q)
+        select r.Bind(Optional);
+
     public static Eff<RT, Option<A>> head<A>(string sql, Seq<object> @params = default) =>
         from q in query<A>(sql, @params)
         from r in head(q)
+        select r;
+
+    public static Eff<RT, Option<A>> headNullable<A>(string sql, Seq<object> @params = default) where A : struct =>
+        from q in query<A?>(sql, @params)
+        from r in head(q)
+        select r.Bind(Optional);
+    #endregion
+
+    #region headT
+    public static OptionT<Eff<RT>, A> headT<A>(IQueryable<A> query) =>
+        liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
+
+    public static OptionT<Eff<RT>, A> headT<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in headT(q)
+        select r;
+
+    public static OptionT<Eff<RT>, A> headT<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in headT(q)
         select r;
     #endregion
 
@@ -98,21 +128,6 @@ public static class Persistence<RT>
     public static Eff<RT, A> single<A>(string sql, Seq<object> @params = default) =>
         from q in query<A>(sql, @params)
         from r in single(q)
-        select r;
-    #endregion
-
-    #region headT
-    public static OptionT<Eff<RT>, A> headT<A>(IQueryable<A> query) =>
-        liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
-
-    public static OptionT<Eff<RT>, A> headT<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in headT(q)
-        select r;
-
-    public static OptionT<Eff<RT>, A> headT<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in headT(q)
         select r;
     #endregion
 
