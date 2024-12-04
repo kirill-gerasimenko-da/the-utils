@@ -18,9 +18,7 @@ public static class Persistence<RT>
 
     #region seq
     public static Eff<RT, Seq<A>> seq<A>(IQueryable<A> query) =>
-        from _ in context
-        from r in liftIO(io => query.ToListAsync(io.Token)).Map(toSeq)
-        select r;
+        liftIO(io => query.ToListAsync(io.Token)).Map(toSeq);
 
     public static Eff<RT, Seq<A>> seq<A>(FormattableString sql) =>
         from q in query<A>(sql)
@@ -35,9 +33,7 @@ public static class Persistence<RT>
 
     #region any
     public static Eff<RT, bool> any<A>(IQueryable<A> query) =>
-        from _ in context
-        from r in liftIO(rt => query.AnyAsync(rt.Token))
-        select r;
+        liftIO(rt => query.AnyAsync(rt.Token));
 
     public static Eff<RT, bool> any<A>(FormattableString sql) =>
         from q in query<A>(sql)
@@ -52,9 +48,7 @@ public static class Persistence<RT>
 
     #region count
     public static Eff<RT, int> count<A>(IQueryable<A> query) =>
-        from _ in context
-        from r in liftIO(rt => query.CountAsync(rt.Token))
-        select r;
+        liftIO(rt => query.CountAsync(rt.Token));
 
     public static Eff<RT, int> count<A>(FormattableString sql) =>
         from q in query<A>(sql)
@@ -69,31 +63,26 @@ public static class Persistence<RT>
 
     #region head
     public static Eff<RT, Option<A>> head<A>(IQueryable<A> query) =>
-        from _ in context
-        from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
-        select r;
+        liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
 
-    public static Eff<RT, Option<A>> head<A>(IQueryable<A?> query) where A : struct =>
-        from _ in context
-        from r in liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional)
-        select r;
+    public static Eff<RT, Option<A>> head<A>(IQueryable<A?> query)
+        where A : struct => liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
 
     public static Eff<RT, Option<A>> head<A>(FormattableString sql) =>
         from q in query<A>(sql)
         from r in head(q)
         select r;
 
-    public static Eff<RT, Option<A>> headNullable<A>(FormattableString sql) where A : struct =>
-        from q in query<A?>(sql)
-        from r in head(q)
-        select r.Bind(Optional);
+    public static Eff<RT, Option<A>> headNullable<A>(FormattableString sql)
+        where A : struct => from q in query<A?>(sql) from r in head(q) select r.Bind(Optional);
 
     public static Eff<RT, Option<A>> head<A>(string sql, Seq<object> @params = default) =>
         from q in query<A>(sql, @params)
         from r in head(q)
         select r;
 
-    public static Eff<RT, Option<A>> headNullable<A>(string sql, Seq<object> @params = default) where A : struct =>
+    public static Eff<RT, Option<A>> headNullable<A>(string sql, Seq<object> @params = default)
+        where A : struct =>
         from q in query<A?>(sql, @params)
         from r in head(q)
         select r.Bind(Optional);
@@ -116,9 +105,7 @@ public static class Persistence<RT>
 
     #region single
     public static Eff<RT, A> single<A>(IQueryable<A> query) =>
-        from _ in context
-        from r in liftIO(rt => query.SingleAsync(rt.Token))
-        select r;
+        liftIO(rt => query.SingleAsync(rt.Token));
 
     public static Eff<RT, A> single<A>(FormattableString sql) =>
         from q in query<A>(sql)
