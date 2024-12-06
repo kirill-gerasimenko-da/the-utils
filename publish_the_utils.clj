@@ -18,7 +18,8 @@
    "./src/TheUtils/TheUtils.csproj"
    "-c" "Release"
    "-o" "./publish"
-   "/p:PackageVersion=2.1.0-beta-3"])
+   "/p:PackageVersion=2.1.0-beta-4"])
+
 
 
   
