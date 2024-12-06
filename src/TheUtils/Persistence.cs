@@ -7,191 +7,130 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
-using static LanguageExt.Prelude;
 
 public static class Persistence<RT>
-    where RT : Has<Eff<RT>, DbContext>
+    where RT : Has<Eff, DbContext>
 {
-    public static Eff<RT, DbContext> context => RT.Ask.As();
+    public static Eff<RT, DbContext> context => PersistenceM<Eff, RT>.context.As();
 
     public static Eff<RT, DatabaseFacade> facade => context.Map(c => c.Database);
 
     #region seq
     public static Eff<RT, Seq<A>> seq<A>(IQueryable<A> query) =>
-        liftIO(io => query.ToListAsync(io.Token)).Map(toSeq);
+        PersistenceM<Eff, RT>.seq(query).As();
 
     public static Eff<RT, Seq<A>> seq<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in seq(q)
-        select r;
+        PersistenceM<Eff, RT>.seq<A>(sql).As();
 
     public static Eff<RT, Seq<A>> seq<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in seq(q)
-        select r;
+        PersistenceM<Eff, RT>.seq<A>(sql, @params).As();
     #endregion
 
     #region any
     public static Eff<RT, bool> any<A>(IQueryable<A> query) =>
-        liftIO(rt => query.AnyAsync(rt.Token));
+        PersistenceM<Eff, RT>.any(query).As();
 
     public static Eff<RT, bool> any<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in any(q)
-        select r;
+        PersistenceM<Eff, RT>.any<A>(sql).As();
 
     public static Eff<RT, bool> any<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in any(q)
-        select r;
+        PersistenceM<Eff, RT>.any<A>(sql, @params).As();
     #endregion
 
     #region count
     public static Eff<RT, int> count<A>(IQueryable<A> query) =>
-        liftIO(rt => query.CountAsync(rt.Token));
+        PersistenceM<Eff, RT>.count(query).As();
 
     public static Eff<RT, int> count<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in count(q)
-        select r;
+        PersistenceM<Eff, RT>.count<A>(sql).As();
 
     public static Eff<RT, int> count<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in count(q)
-        select r;
+        PersistenceM<Eff, RT>.count<A>(sql, @params).As();
     #endregion
 
     #region head
     public static Eff<RT, Option<A>> head<A>(IQueryable<A> query) =>
-        liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
+        PersistenceM<Eff, RT>.head(query).As();
 
     public static Eff<RT, Option<A>> head<A>(IQueryable<A?> query)
-        where A : struct => liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
+        where A : struct => PersistenceM<Eff, RT>.head(query).As();
 
     public static Eff<RT, Option<A>> head<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in head(q)
-        select r;
+        PersistenceM<Eff, RT>.head<A>(sql).As();
 
     public static Eff<RT, Option<A>> headNullable<A>(FormattableString sql)
-        where A : struct => from q in query<A?>(sql) from r in head(q) select r.Bind(Optional);
+        where A : struct => PersistenceM<Eff, RT>.headNullable<A>(sql).As();
 
     public static Eff<RT, Option<A>> head<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in head(q)
-        select r;
+        PersistenceM<Eff, RT>.head<A>(sql, @params).As();
 
     public static Eff<RT, Option<A>> headNullable<A>(string sql, Seq<object> @params = default)
-        where A : struct =>
-        from q in query<A?>(sql, @params)
-        from r in head(q)
-        select r.Bind(Optional);
+        where A : struct => PersistenceM<Eff, RT>.headNullable<A>(sql, @params).As();
     #endregion
 
     #region headT
-    public static OptionT<Eff<RT>, A> headT<A>(IQueryable<A> query) =>
-        liftIO(rt => query.FirstOrDefaultAsync(rt.Token)).Map(Optional);
+    public static OptionT<Eff, A> headT<A>(IQueryable<A> query) =>
+        PersistenceM<Eff, RT>.headT(query);
 
-    public static OptionT<Eff<RT>, A> headT<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in headT(q)
-        select r;
+    public static OptionT<Eff, A> headT<A>(FormattableString sql) =>
+        PersistenceM<Eff, RT>.headT<A>(sql).As();
 
-    public static OptionT<Eff<RT>, A> headT<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in headT(q)
-        select r;
+    public static OptionT<Eff, A> headT<A>(string sql, Seq<object> @params = default) =>
+        PersistenceM<Eff, RT>.headT<A>(sql, @params).As();
     #endregion
 
     #region single
     public static Eff<RT, A> single<A>(IQueryable<A> query) =>
-        liftIO(rt => query.SingleAsync(rt.Token));
+        PersistenceM<Eff, RT>.single(query).As();
 
     public static Eff<RT, A> single<A>(FormattableString sql) =>
-        from q in query<A>(sql)
-        from r in single(q)
-        select r;
+        PersistenceM<Eff, RT>.single<A>(sql).As();
 
     public static Eff<RT, A> single<A>(string sql, Seq<object> @params = default) =>
-        from q in query<A>(sql, @params)
-        from r in single(q)
-        select r;
+        PersistenceM<Eff, RT>.single<A>(sql, @params).As();
     #endregion
 
     public static Eff<RT, DbSet<A>> set<A>()
-        where A : class => context.Map(c => c.Set<A>());
+        where A : class => PersistenceM<Eff, RT>.set<A>().As();
 
-    public static Eff<RT, int> saveChanges =>
-        from c in context
-        from n in liftIO(async rt => await c.SaveChangesAsync(rt.Token))
-        select n;
+    public static Eff<RT, int> saveChanges => PersistenceM<Eff, RT>.saveChanges.As();
 
     public static Eff<RT, int> execute(FormattableString sql) =>
-        from f in facade
-        from n in liftIO(async rt => await f.ExecuteSqlAsync(sql, rt.Token))
-        select n;
+        PersistenceM<Eff, RT>.execute(sql).As();
 
     public static Eff<RT, int> execute(string sql, Seq<object> @params = default) =>
-        from f in facade
-        from n in liftIO(async rt => await f.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.Token))
-        select n;
+        PersistenceM<Eff, RT>.execute(sql, @params).As();
 
     public static Eff<RT, IDbContextTransaction> beginTransaction(
         IsolationLevel isolation = IsolationLevel.Unspecified
-    ) =>
-        from f in facade
-        from t in liftIO(async rt => await f.BeginTransactionAsync(isolation, rt.Token))
-        select t;
+    ) => PersistenceM<Eff, RT>.beginTransaction(isolation).As();
 
-    public static Eff<RT, Unit> commitTransaction =>
-        from f in facade
-        from _ in liftIO(async rt => await f.CommitTransactionAsync(rt.Token))
-        select unit;
+    public static Eff<RT, Unit> commitTransaction => PersistenceM<Eff, RT>.commitTransaction.As();
 
     public static Eff<RT, Unit> rollbackTransaction =>
-        from f in facade
-        from _ in liftIO(async rt => await f.RollbackTransactionAsync(rt.Token))
-        select unit;
+        PersistenceM<Eff, RT>.rollbackTransaction.As();
 
     public static Eff<RT, IQueryable<A>> query<A>(FormattableString sql) =>
-        facade.Map(x => x.SqlQuery<A>(sql));
+        PersistenceM<Eff, RT>.query<A>(sql).As();
 
     public static Eff<RT, IQueryable<A>> query<A>(string sql, Seq<object> @params = default) =>
-        facade.Map(x => x.SqlQueryRaw<A>(sql, @params.ToArray()));
+        PersistenceM<Eff, RT>.query<A>(sql, @params).As();
 
     public static Eff<RT, EntityEntry<A>> add<A>(A a)
-        where A : class =>
-        from s in set<A>()
-        from e in liftIO(async rt => await s.AddAsync(a, rt.Token))
-        select e;
+        where A : class => PersistenceM<Eff, RT>.add(a).As();
 
     public static Eff<RT, Unit> addRange<A>(Seq<A> a)
-        where A : class =>
-        from s in set<A>()
-        from _ in liftIO(async rt => await s.AddRangeAsync(a, rt.Token))
-        select unit;
+        where A : class => PersistenceM<Eff, RT>.addRange(a).As();
 
     public static Eff<RT, EntityEntry<A>> update<A>(A a)
-        where A : class => set<A>().Map(x => x.Update(a));
+        where A : class => PersistenceM<Eff, RT>.update(a).As();
 
     public static Eff<RT, Unit> updateRange<A>(Seq<A> a)
-        where A : class =>
-        set<A>()
-            .Map(x =>
-            {
-                x.UpdateRange(a);
-                return unit;
-            });
+        where A : class => PersistenceM<Eff, RT>.updateRange(a).As();
 
     public static Eff<RT, EntityEntry<A>> delete<A>(A a)
-        where A : class => set<A>().Map(x => x.Remove(a));
+        where A : class => PersistenceM<Eff, RT>.delete(a).As();
 
     public static Eff<RT, Unit> deleteRange<A>(Seq<A> a)
-        where A : class =>
-        set<A>()
-            .Map(x =>
-            {
-                x.RemoveRange(a);
-                return unit;
-            });
+        where A : class => PersistenceM<Eff, RT>.deleteRange(a).As();
 }
