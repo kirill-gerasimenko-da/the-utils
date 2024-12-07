@@ -13,7 +13,7 @@ public static class PersistenceM<M, RT>
     where RT : Has<M, DbContext>
     where M : Monad<M>, Fallible<M>
 {
-    public static K<M, DbContext> context => RT.Ask;
+    public static K<M, DbContext> context => Has<M, RT, DbContext>.ask;
 
     public static K<M, DatabaseFacade> facade => context.Map(c => c.Database);
 
