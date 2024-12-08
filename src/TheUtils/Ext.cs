@@ -1,12 +1,12 @@
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace TheUtils.Extensions;
+namespace TheUtils;
 
 using LanguageExt;
 using LanguageExt.UnsafeValueAccess;
 using static LanguageExt.Prelude;
 
-public static partial class TheUtilsExtensions
+public static class Ext
 {
     public static T IfNoneDefault<T>(this Option<T> opt)
         where T : class => opt.IsNone ? default : opt.ValueUnsafe();

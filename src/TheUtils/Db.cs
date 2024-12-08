@@ -9,11 +9,16 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using static LanguageExt.Prelude;
 
-public static class PersistenceM<M, RT>
-    where RT : Has<M, DbContext>
+public abstract record Db
+{
+    public record EfCore(DbContext Context) : Db;
+}
+
+public static class Db<M, RT>
+    where RT : Has<M, Db>
     where M : Monad<M>, Fallible<M>
 {
-    public static K<M, DbContext> context => Has<M, RT, DbContext>.ask;
+    public static K<M, DbContext> context => Has<M, RT, Db>.ask.Map(c => ((Db.EfCore)c).Context);
 
     public static K<M, DatabaseFacade> facade => context.Map(c => c.Database);
 

@@ -9,7 +9,7 @@ using LanguageExt;
 using LanguageExt.Common;
 using static LanguageExt.Prelude;
 
-public static class Validations
+public static class Val
 {
     public interface Validated<SELF>
         where SELF : Validated<SELF>

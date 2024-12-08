@@ -9,7 +9,7 @@ using LanguageExt.UnsafeValueAccess;
 using Microsoft.Extensions.Configuration;
 using static LanguageExt.Prelude;
 
-public static class Configuration
+public static class Cfg
 {
     public record ConfigurationError(string ParamName, string ReasonItIsInvalid)
         : Expected($"'{ParamName}' is not valid: {ReasonItIsInvalid}", 1);
