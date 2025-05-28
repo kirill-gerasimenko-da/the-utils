@@ -1,5 +1,5 @@
 // ReSharper disable UnusedMethodReturnValue.Global
-
+// ReSharper disable MemberCanBePrivate.Global
 namespace TheUtils;
 
 using System.Runtime.CompilerServices;
@@ -7,6 +7,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using LanguageExt;
 using LanguageExt.Common;
+using LanguageExt.UnsafeValueAccess;
 using static LanguageExt.Prelude;
 
 public static class Val
@@ -17,17 +18,49 @@ public static class Val
         static abstract Validator<SELF> validator { get; }
     }
 
+    public record Valid<A>
+        where A : Validated<A>
+    {
+        public Valid(A a) => Value = validate(a);
+
+        public A Value { get; }
+
+        public static implicit operator Valid<A>(A a) => new(a);
+
+        public static implicit operator A(Valid<A> a) => a.Value;
+    }
+
+    public static IConditionBuilder WhenSome<A, B>(
+        this AbstractValidator<A> val,
+        Func<A, Option<B>> predicate,
+        Action<IRuleBuilderInitial<A, B>> builder
+    ) =>
+        val.When(
+            x => predicate(x).IsSome,
+            () => builder(val.RuleFor(y => predicate(y).ValueUnsafe()))
+        );
+
     public static IRuleBuilderOptions<A, B> SetFluentValidator<A, B>(
         this IRuleBuilder<A, B> builder,
         params string[] ruleSets
     )
-        where B : Validated<B> => builder.SetValidator(fluentValidator<B>(), ruleSets);
+        where B : Validated<B> => builder.NotNull().SetValidator(fluentValidator<B>(), ruleSets);
 
     public static AbstractValidator<A> fluentValidator<A>()
         where A : Validated<A> => new ValidatorImpl<A>(A.validator);
 
     public static A validate<A>(A a)
         where A : Validated<A> => a.Validate();
+
+    public static A validate<A>(
+        A a,
+        Func<IRuleBuilder<A, A>, IRuleBuilderOptions<A, A>> ruleBuilder
+    ) => a.Validate(x => ruleBuilder(x.RuleFor(v => v)));
+
+    public static Option<A> validateSafe<A>(
+        A a,
+        Func<IRuleBuilder<A, A>, IRuleBuilderOptions<A, A>> ruleBuilder
+    ) => a.ValidateSafe(x => ruleBuilder(x.RuleFor(v => v)));
 
     public static Option<A> validateSafe<A>(A a)
         where A : Validated<A> => a.ValidateSafe();
@@ -69,6 +102,9 @@ public static class Val
         throw toError(result, $"Validation failed for object of type '{typeof(A).Name}'");
     }
 
+    public static Option<A> ValidateSafe<A>(this A value, Validator<A> validator) =>
+        validate(value, validator).IsValid ? value : None;
+
     public static Eff<Unit> validateM<A>(
         A value,
         Validator<A> validator,
@@ -80,6 +116,16 @@ public static class Val
 
     public static Error ToError(this ValidationResult result, string message) =>
         toError(result, message);
+
+    public static Fin<A> ValidateFin<A>(this A a, Func<string> error)
+        where A : Validated<A>
+    {
+        var r = tryValidate(a);
+        return r.IsValid ? new Fin.Fail<A>(r.ToError(error())) : new Fin.Succ<A>(a);
+    }
+
+    public static Fin<A> validateFin<A>(A a, Func<string> error)
+        where A : Validated<A> => a.ValidateFin(error);
 
     static Error toError(ValidationResult result, string message) =>
         Error.New(
