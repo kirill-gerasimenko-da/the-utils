@@ -12,6 +12,8 @@ using static LanguageExt.Prelude;
 
 public static class Val
 {
+    public static readonly Atom<int> ValidationErrorCode = Atom(-10_000);
+
     public interface Validated<SELF>
         where SELF : Validated<SELF>
     {
@@ -123,6 +125,9 @@ public static class Val
     public static Error ToError(this ValidationResult result, string message) =>
         toError(result, message);
 
+    public static Fin<A> ValidateFin<A>(this A a, string error)
+        where A : Validated<A> => a.ValidateFin(() => error);
+
     public static Fin<A> ValidateFin<A>(this A a, Func<string> error)
         where A : Validated<A>
     {
@@ -133,11 +138,19 @@ public static class Val
     public static Fin<A> validateFin<A>(A a, Func<string> error)
         where A : Validated<A> => a.ValidateFin(error);
 
+    public static Fin<A> validateFin<A>(A a, string error)
+        where A : Validated<A> => a.ValidateFin(error);
+
     static Error toError(ValidationResult result, string message) =>
-        Error.New(
+        new Expected(
             message,
+            ValidationErrorCode.Value,
             Error.Many(
-                toSeq(result.Errors).Map(e => Error.New($"'{e.PropertyName}': {e.ErrorMessage}"))
+                toSeq(result.Errors)
+                    .Map<Error>(e => new Expected(
+                        $"'{e.PropertyName}': {e.ErrorMessage}",
+                        ValidationErrorCode.Value
+                    ))
             )
         );
 
