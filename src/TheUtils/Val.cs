@@ -105,7 +105,13 @@ public static class Val
     public static Option<A> ValidateSafe<A>(this A value, Validator<A> validator) =>
         validate(value, validator).IsValid ? value : None;
 
-    public static Eff<Unit> validateM<A>(
+    public static Eff<Unit> ValidateEff<A>(
+        this A value,
+        Validator<A> validator,
+        [CallerArgumentExpression("value")] string callerName = null
+    ) => validateEff(value, validator, callerName);
+
+    public static Eff<Unit> validateEff<A>(
         A value,
         Validator<A> validator,
         [CallerArgumentExpression("value")] string callerName = null
