@@ -138,7 +138,7 @@ public static class Db<M, RT>
         from n in liftIO(async rt => await f.ExecuteSqlAsync(sql, rt.Token))
         select n;
 
-    public static K<M, int> execute(string sql, Seq<object> @params = default) =>
+    public static K<M, int> executeRaw(string sql, Seq<object> @params = default) =>
         from f in facade
         from n in liftIO(async rt => await f.ExecuteSqlRawAsync(sql, @params.ToArray(), rt.Token))
         select n;

@@ -36,14 +36,16 @@ public static class DbEff<RT>
     #region count
     public static Eff<RT, int> count<A>(IQueryable<A> query) => Db<Eff<RT>, RT>.count(query).As();
 
-    public static Eff<RT, int> count<A>(FormattableString sql) => Db<Eff<RT>, RT>.count<A>(sql).As();
+    public static Eff<RT, int> count<A>(FormattableString sql) =>
+        Db<Eff<RT>, RT>.count<A>(sql).As();
 
     public static Eff<RT, int> count<A>(string sql, Seq<object> @params = default) =>
         Db<Eff<RT>, RT>.count<A>(sql, @params).As();
     #endregion
 
     #region head
-    public static Eff<RT, Option<A>> head<A>(IQueryable<A> query) => Db<Eff<RT>, RT>.head(query).As();
+    public static Eff<RT, Option<A>> head<A>(IQueryable<A> query) =>
+        Db<Eff<RT>, RT>.head(query).As();
 
     public static Eff<RT, Option<A>> head<A>(IQueryable<A?> query)
         where A : struct => Db<Eff<RT>, RT>.head(query).As();
@@ -64,7 +66,8 @@ public static class DbEff<RT>
     #region headT
     public static OptionT<Eff<RT>, A> headT<A>(IQueryable<A> query) => Db<Eff<RT>, RT>.headT(query);
 
-    public static OptionT<Eff<RT>, A> headT<A>(FormattableString sql) => Db<Eff<RT>, RT>.headT<A>(sql).As();
+    public static OptionT<Eff<RT>, A> headT<A>(FormattableString sql) =>
+        Db<Eff<RT>, RT>.headT<A>(sql).As();
 
     public static OptionT<Eff<RT>, A> headT<A>(string sql, Seq<object> @params = default) =>
         Db<Eff<RT>, RT>.headT<A>(sql, @params).As();
@@ -73,7 +76,8 @@ public static class DbEff<RT>
     #region single
     public static Eff<RT, A> single<A>(IQueryable<A> query) => Db<Eff<RT>, RT>.single(query).As();
 
-    public static Eff<RT, A> single<A>(FormattableString sql) => Db<Eff<RT>, RT>.single<A>(sql).As();
+    public static Eff<RT, A> single<A>(FormattableString sql) =>
+        Db<Eff<RT>, RT>.single<A>(sql).As();
 
     public static Eff<RT, A> single<A>(string sql, Seq<object> @params = default) =>
         Db<Eff<RT>, RT>.single<A>(sql, @params).As();
@@ -86,8 +90,8 @@ public static class DbEff<RT>
 
     public static Eff<RT, int> execute(FormattableString sql) => Db<Eff<RT>, RT>.execute(sql).As();
 
-    public static Eff<RT, int> execute(string sql, Seq<object> @params = default) =>
-        Db<Eff<RT>, RT>.execute(sql, @params).As();
+    public static Eff<RT, int> executeRaw(string sql, Seq<object> @params = default) =>
+        Db<Eff<RT>, RT>.executeRaw(sql, @params).As();
 
     public static Eff<RT, IDbContextTransaction> beginTransaction(
         IsolationLevel isolation = IsolationLevel.Unspecified

@@ -2,7 +2,6 @@
 // ReSharper disable MemberCanBePrivate.Global
 namespace TheUtils;
 
-using System.Runtime.CompilerServices;
 using FluentValidation;
 using FluentValidation.Results;
 using LanguageExt;
@@ -47,6 +46,12 @@ public static class Val
         params string[] ruleSets
     )
         where B : Validated<B> => builder.NotNull().SetValidator(fluentValidator<B>(), ruleSets);
+
+    public static IRuleBuilderOptions<A, A> SetFluentValidator<A>(
+        this AbstractValidator<A> builder,
+        params string[] ruleSets
+    )
+        where A : Validated<A> => builder.RuleFor(x => x).SetFluentValidator(ruleSets);
 
     public static AbstractValidator<A> fluentValidator<A>()
         where A : Validated<A> => new ValidatorImpl<A>(A.validator);
@@ -107,20 +112,19 @@ public static class Val
     public static Option<A> ValidateSafe<A>(this A value, Validator<A> validator) =>
         validate(value, validator).IsValid ? value : None;
 
-    public static Eff<Unit> ValidateEff<A>(
-        this A value,
-        Validator<A> validator,
-        [CallerArgumentExpression("value")] string callerName = null
-    ) => validateEff(value, validator, callerName);
+    public static Eff<A> ValidateEff<A>(this A value, Validator<A> validator) =>
+        validateEff(value, validator);
 
-    public static Eff<Unit> validateEff<A>(
-        A value,
-        Validator<A> validator,
-        [CallerArgumentExpression("value")] string callerName = null
-    ) =>
+    public static Eff<A> ValidateEff<A>(this A value)
+        where A : Validated<A> => validateEff(value);
+
+    public static Eff<A> validateEff<A>(A value, Validator<A> validator) =>
         from val in liftEff(() => validate(value, validator))
-        from _ in guard(val.IsValid, mapToError<A>(callerName)(val))
-        select unit;
+        from _ in guard(val.IsValid, mapToError<A>()(val))
+        select value;
+
+    public static Eff<A> validateEff<A>(A value)
+        where A : Validated<A> => validateEff(value, A.validator);
 
     public static Error ToError(this ValidationResult result, string message) =>
         toError(result, message);
@@ -154,12 +158,8 @@ public static class Val
             )
         );
 
-    static Func<ValidationResult, Error> mapToError<A>(string callerName) =>
-        result =>
-            toError(
-                result,
-                $"Validation failed for '{callerName}' for object of type '{typeof(A).Name}'"
-            );
+    static Func<ValidationResult, Error> mapToError<A>() =>
+        result => toError(result, $"Validation failed for object of type '{typeof(A).Name}'");
 
     public class ValidatorImpl<A> : AbstractValidator<A>
     {
