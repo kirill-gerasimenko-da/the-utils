@@ -16,7 +16,7 @@ public abstract record Db
 
 public static class Db<M, RT>
     where RT : Has<M, Db>
-    where M : Monad<M>, Fallible<M>
+    where M : MonadIO<M>, Fallible<M>
 {
     public static K<M, DbContext> context => Has<M, RT, Db>.ask.Map(c => ((Db.EfCore)c).Context);
 

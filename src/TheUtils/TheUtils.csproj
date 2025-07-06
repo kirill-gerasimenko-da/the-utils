@@ -17,23 +17,23 @@
         <PackageTags>language-ext utils</PackageTags>
         <PackageId>TheUtils</PackageId>
         <Product>TheUtils</Product>
-        <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+        <TargetFramework>net9.0</TargetFramework>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
 
     </PropertyGroup>
 
     <ItemGroup>
-        <None Include="../../LICENSE" Pack="true" PackagePath=""/>
+        <None Include="../../LICENSE" Pack="true" PackagePath="" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="FluentValidation" Version="11.11.0"/>
-        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-52" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.4" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.4" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
-        <PackageReference Include="System.Linq.Async" Version="6.0.1"/>
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.4" />
+        <PackageReference Include="FluentValidation" Version="12.0.0" />
+        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-54" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.6" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.6" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="System.Linq.Async" Version="6.0.3" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.6" />
     </ItemGroup>
 
 </Project>
