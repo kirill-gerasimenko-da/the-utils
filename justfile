@@ -1,8 +1,13 @@
+set positional-arguments
 alias t := restore
 alias b := build
 alias p := pack
+alias d := deps
 
 default: build
+
+deps *args='':
+    @(cd ./src && dotnet outdated "$@")
 
 restore:
     @(cd ./src && dotnet restore -tl:off)
