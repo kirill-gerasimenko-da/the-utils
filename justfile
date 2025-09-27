@@ -15,5 +15,5 @@ restore:
 build:
     @(cd ./src && dotnet build --no-restore -tl:off)
 
-pack:
-    @(cd ./src && dotnet pack "./TheUtils/TheUtils.csproj" -c Release -o ../publish /p:PackageVersion=2.1.0-beta-16)
+pack: build
+    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils/TheUtils.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-1)
