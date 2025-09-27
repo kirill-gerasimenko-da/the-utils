@@ -11,7 +11,7 @@ using LanguageExt.Traits;
 using LanguageExt.UnsafeValueAccess;
 using static LanguageExt.Prelude;
 
-public class Cli
+public static class Cli
 {
     static readonly PipeTarget defaultOutPipeTarget = PipeTarget.ToDelegate(Console.WriteLine);
     static readonly PipeTarget defaultErrorPipeTarget = PipeTarget.ToDelegate(Console.WriteLine);
