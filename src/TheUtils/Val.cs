@@ -11,6 +11,8 @@ using static LanguageExt.Prelude;
 
 public static class Val
 {
+    public delegate IRuleBuilderOptions<A, A> RuleBuilder<A>(IRuleBuilder<A, A> builder);
+
     public static readonly Atom<int> ValidationErrorCode = Atom(-10_000);
 
     public interface Validated<SELF>
