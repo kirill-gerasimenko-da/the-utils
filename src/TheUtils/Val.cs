@@ -118,6 +118,11 @@ public static class Val
     public static Eff<A> ValidateEff<A>(this A value)
         where A : Validated<A> => validateEff(value);
 
+    public static Eff<A> validateEff<A>(
+        A a,
+        Func<IRuleBuilder<A, A>, IRuleBuilderOptions<A, A>> ruleBuilder
+    ) => a.ValidateEff(x => ruleBuilder(x.RuleFor(v => v)));
+
     public static Eff<A> validateEff<A>(A value, Validator<A> validator) =>
         from val in liftEff(() => validate(value, validator))
         from _ in guard(val.IsValid, mapToError<A>()(val))
