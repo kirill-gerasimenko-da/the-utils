@@ -81,5 +81,6 @@ public static class Cli
             outPipeTarget: PipeTarget.ToStringBuilder(builder)
         )
         from result in runCommand(command)
+        from _ in guard(result.IsSuccess, () => Error.New($"Failed to run command {result}"))
         select builder.ToString();
 }
