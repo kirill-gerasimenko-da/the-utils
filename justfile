@@ -7,7 +7,7 @@ alias d := deps
 default: build
 
 deps *args='':
-    @(cd ./src && dotnet outdated "$@")
+    @(cd ./src && dotnet outdated -u:prompt "$@")
 
 restore:
     @(cd ./src && dotnet restore -tl:off)
