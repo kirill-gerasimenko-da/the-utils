@@ -150,7 +150,7 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                     var meth = new Method
                     {
                         Name = msr.Name,
-                        ReturnType = msr.ReturnType.ToMinimalDisplayString(semanticModel, 0)
+                        ReturnType = GetFullyQualifiedTypeName(msr.ReturnType)
                     };
 
                     foreach (var p in msr.Parameters)
@@ -161,7 +161,7 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                             new InputParameter
                             {
                                 Name = p.Name,
-                                TypeName = p.Type.ToMinimalDisplayString(semanticModel, 0),
+                                TypeName = GetFullyQualifiedTypeName(p.Type),
                                 Default = def,
                                 IsDefault = def != null
                             }
@@ -192,6 +192,18 @@ public class GenInterfaceGenerator : IIncrementalGenerator
             def = syn.Default.ToFullString();
 
         return def;
+    }
+
+    static string GetFullyQualifiedTypeName(ITypeSymbol type)
+    {
+        return type.ToDisplayString(
+            new SymbolDisplayFormat(
+                globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
+                typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+                genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
+                miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
+            )
+        );
     }
 
     static bool IsSyntaxTargetForGeneration(SyntaxNode node) =>
