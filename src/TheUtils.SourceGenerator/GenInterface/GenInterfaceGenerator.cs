@@ -15,6 +15,8 @@ public record Method
     public string Name { get; set; }
     public string ReturnType { get; set; }
     public List<InputParameter> Parameters { get; set; } = new();
+    public string TypeParameters { get; set; } = "";
+    public string TypeConstraints { get; set; } = "";
 }
 
 public record InputParameter
@@ -36,6 +38,9 @@ public record ClassMetadata
     public bool ParentClassIsStatic { get; set; }
 
     public List<Method> Methods { get; set; } = new();
+
+    public string TypeParameters { get; set; } = "";
+    public string TypeConstraints { get; set; } = "";
 }
 
 [Generator]
@@ -45,15 +50,14 @@ public record ClassMetadata
 )]
 public class GenInterfaceGenerator : IIncrementalGenerator
 {
-    public static readonly DiagnosticDescriptor ClassIsNotPartial =
-        new(
-            id: "TUTLS02",
-            title: "The class MUST be partial",
-            messageFormat: "The class '{0}' MUST be partial",
-            category: "GenInterfaceGenerator",
-            DiagnosticSeverity.Error,
-            isEnabledByDefault: true
-        );
+    public static readonly DiagnosticDescriptor ClassIsNotPartial = new(
+        id: "TUTLS02",
+        title: "The class MUST be partial",
+        messageFormat: "The class '{0}' MUST be partial",
+        category: "GenInterfaceGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -134,6 +138,8 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                     semanticModel,
                     0
                 ),
+                TypeParameters = GetTypeParameters(classSymbol),
+                TypeConstraints = GetTypeConstraints(classSymbol),
             };
 
             // find parameters
@@ -150,7 +156,9 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                     var meth = new Method
                     {
                         Name = msr.Name,
-                        ReturnType = GetFullyQualifiedTypeName(msr.ReturnType)
+                        ReturnType = GetFullyQualifiedTypeName(msr.ReturnType),
+                        TypeParameters = GetMethodTypeParameters(msr),
+                        TypeConstraints = GetMethodTypeConstraints(msr),
                     };
 
                     foreach (var p in msr.Parameters)
@@ -163,7 +171,7 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                                 Name = p.Name,
                                 TypeName = GetFullyQualifiedTypeName(p.Type),
                                 Default = def,
-                                IsDefault = def != null
+                                IsDefault = def != null,
                             }
                         );
                     }
@@ -204,6 +212,98 @@ public class GenInterfaceGenerator : IIncrementalGenerator
                 miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes
             )
         );
+    }
+
+    static string GetTypeParameters(INamedTypeSymbol typeSymbol)
+    {
+        if (!typeSymbol.TypeParameters.Any())
+            return "";
+
+        var parameters = string.Join(", ", typeSymbol.TypeParameters.Select(tp => tp.Name));
+        return $"<{parameters}>";
+    }
+
+    static string GetTypeConstraints(INamedTypeSymbol typeSymbol)
+    {
+        if (!typeSymbol.TypeParameters.Any())
+            return "";
+
+        var constraints = new List<string>();
+        foreach (var typeParam in typeSymbol.TypeParameters)
+        {
+            var constraintsList = new List<string>();
+
+            if (typeParam.HasReferenceTypeConstraint)
+                constraintsList.Add("class");
+            if (typeParam.HasValueTypeConstraint)
+                constraintsList.Add("struct");
+            if (typeParam.HasUnmanagedTypeConstraint)
+                constraintsList.Add("unmanaged");
+            if (typeParam.HasNotNullConstraint)
+                constraintsList.Add("notnull");
+
+            foreach (var constraintType in typeParam.ConstraintTypes)
+            {
+                constraintsList.Add(GetFullyQualifiedTypeName(constraintType));
+            }
+
+            if (typeParam.HasConstructorConstraint)
+                constraintsList.Add("new()");
+
+            if (constraintsList.Count > 0)
+            {
+                constraints.Add($"where {typeParam.Name} : {string.Join(", ", constraintsList)}");
+            }
+        }
+
+        return constraints.Count > 0 ? "\n        " + string.Join("\n        ", constraints) : "";
+    }
+
+    static string GetMethodTypeParameters(IMethodSymbol methodSymbol)
+    {
+        if (!methodSymbol.TypeParameters.Any())
+            return "";
+
+        var parameters = string.Join(", ", methodSymbol.TypeParameters.Select(tp => tp.Name));
+        return $"<{parameters}>";
+    }
+
+    static string GetMethodTypeConstraints(IMethodSymbol methodSymbol)
+    {
+        if (!methodSymbol.TypeParameters.Any())
+            return "";
+
+        var constraints = new List<string>();
+        foreach (var typeParam in methodSymbol.TypeParameters)
+        {
+            var constraintsList = new List<string>();
+
+            if (typeParam.HasReferenceTypeConstraint)
+                constraintsList.Add("class");
+            if (typeParam.HasValueTypeConstraint)
+                constraintsList.Add("struct");
+            if (typeParam.HasUnmanagedTypeConstraint)
+                constraintsList.Add("unmanaged");
+            if (typeParam.HasNotNullConstraint)
+                constraintsList.Add("notnull");
+
+            foreach (var constraintType in typeParam.ConstraintTypes)
+            {
+                constraintsList.Add(GetFullyQualifiedTypeName(constraintType));
+            }
+
+            if (typeParam.HasConstructorConstraint)
+                constraintsList.Add("new()");
+
+            if (constraintsList.Count > 0)
+            {
+                constraints.Add($"where {typeParam.Name} : {string.Join(", ", constraintsList)}");
+            }
+        }
+
+        return constraints.Count > 0
+            ? "\n            " + string.Join("\n            ", constraints)
+            : "";
     }
 
     static bool IsSyntaxTargetForGeneration(SyntaxNode node) =>

@@ -28,9 +28,9 @@ public class GenInterfaceSourcesGenerator
         /// <summary>
         /// <inheritdoc cref=""{meta.ClassName}.{meth.Name}"" />
         /// </summary>
-        {meth.ReturnType} {meth.Name}(
+        {meth.ReturnType} {meth.Name}{meth.TypeParameters}(
             {inputParams}
-        );
+        ){meth.TypeConstraints};
                 ";
             })
         );
@@ -45,12 +45,12 @@ namespace {meta.NamespaceName}
     /// <summary>
     /// <inheritdoc cref=""{meta.ClassName}""/>
     /// </summary>
-    public interface I{meta.ClassName}
+    public interface I{meta.ClassName}{meta.TypeParameters}{meta.TypeConstraints}
     {{
         {methods}
     }}
 
-    public partial class {meta.ClassName} : I{meta.ClassName} {{ }}
+    public partial class {meta.ClassName}{meta.TypeParameters} : I{meta.ClassName}{meta.TypeParameters}{meta.TypeConstraints} {{ }}
 
     {outerClassEnd}
 }}
