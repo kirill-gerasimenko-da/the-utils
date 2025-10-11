@@ -11,7 +11,7 @@ public static class Ext
     public static T IfNoneDefault<T>(this Option<T> opt)
         where T : class => opt.IsNone ? default : opt.ValueUnsafe();
 
-    public static Option<string> NoneIfEmpty(this string s) => isEmpty(s) ? None : Some(s);
+    public static Option<string> IfEmptyNone(this string s) => isEmpty(s) ? None : Some(s);
 
     public static bool IsSome<T>(this Option<T> o, out T value)
     {
@@ -28,7 +28,7 @@ public static class Ext
     public static T ifNoneDefault<T>(Option<T> opt)
         where T : class => opt.IfNoneDefault();
 
-    public static Option<string> noneIfEmpty(string s) => s.NoneIfEmpty();
+    public static Option<string> ifEmptyNone(string s) => s.IfEmptyNone();
 
     public static bool isSome<T>(Option<T> o, out T value) => o.IsSome(out value);
 
