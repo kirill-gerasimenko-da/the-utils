@@ -106,6 +106,15 @@ Pg<User> getUser(string email) =>
     from user in require(users.Where(u => u.Email == email))
     select user;
 
+// Get single entity with OptionT (for monad transformer chaining)
+Pg<Option<string>> getUserEmail(int id) =>
+    from result in (
+        from users in set<User>()
+        from user in headT(users.Where(u => u.Id == id))
+        select user.Email
+    ).Run()
+    select result;
+
 // Check existence
 Pg<bool> userExists(string email) =>
     from users in set<User>()
