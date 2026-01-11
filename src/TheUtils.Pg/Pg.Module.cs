@@ -1,3 +1,4 @@
+
 namespace TheUtils;
 
 using System.Data;
@@ -17,7 +18,7 @@ using static LanguageExt.Prelude;
 /// <summary>
 /// PostgreSQL monad operations - queries, transactions, and Npgsql-specific features.
 /// </summary>
-public static class PgOps
+public partial class Pg
 {
     // ==================== Environment & State Access ====================
 
@@ -106,7 +107,7 @@ public static class PgOps
     /// Execute an interpolated SQL query and return results as Seq.
     /// </summary>
     public static Pg<Seq<A>> seq<A>(FormattableString sql) =>
-        from q in queryable<A>(sql)
+        from q in query<A>(sql)
         from r in seq(q)
         select r;
 
@@ -114,7 +115,7 @@ public static class PgOps
     /// Execute a raw SQL query with parameters and return results as Seq.
     /// </summary>
     public static Pg<Seq<A>> seq<A>(string sql, Seq<object> @params = default) =>
-        from q in queryable<A>(sql, @params)
+        from q in query<A>(sql, @params)
         from r in seq(q)
         select r;
 
@@ -131,7 +132,7 @@ public static class PgOps
     /// Check if any rows match the interpolated SQL.
     /// </summary>
     public static Pg<bool> any<A>(FormattableString sql) =>
-        from q in queryable<A>(sql)
+        from q in query<A>(sql)
         from r in any(q)
         select r;
 
@@ -148,7 +149,7 @@ public static class PgOps
     /// Count rows matching the interpolated SQL.
     /// </summary>
     public static Pg<int> count<A>(FormattableString sql) =>
-        from q in queryable<A>(sql)
+        from q in query<A>(sql)
         from r in count(q)
         select r;
 
@@ -165,7 +166,7 @@ public static class PgOps
     /// Get the first row from interpolated SQL or None.
     /// </summary>
     public static Pg<Option<A>> head<A>(FormattableString sql) =>
-        from q in queryable<A>(sql)
+        from q in query<A>(sql)
         from r in head(q)
         select r;
 
@@ -182,7 +183,7 @@ public static class PgOps
     /// Get exactly one row from interpolated SQL.
     /// </summary>
     public static Pg<A> single<A>(FormattableString sql) =>
-        from q in queryable<A>(sql)
+        from q in query<A>(sql)
         from r in single(q)
         select r;
 
@@ -194,16 +195,16 @@ public static class PgOps
         select c.Set<A>();
 
     /// <summary>
-    /// Create a queryable from interpolated SQL.
+    /// Create a query from interpolated SQL.
     /// </summary>
-    public static Pg<IQueryable<A>> queryable<A>(FormattableString sql) =>
+    public static Pg<IQueryable<A>> query<A>(FormattableString sql) =>
         from f in facade
         select f.SqlQuery<A>(sql);
 
     /// <summary>
-    /// Create a queryable from raw SQL with parameters.
+    /// Create a query from raw SQL with parameters.
     /// </summary>
-    public static Pg<IQueryable<A>> queryable<A>(string sql, Seq<object> @params = default) =>
+    public static Pg<IQueryable<A>> query<A>(string sql, Seq<object> @params = default) =>
         from f in facade
         select f.SqlQueryRaw<A>(sql, @params.ToArray());
 

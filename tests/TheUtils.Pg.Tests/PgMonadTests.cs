@@ -6,7 +6,7 @@ using LanguageExt.Common;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using static LanguageExt.Prelude;
-using static TheUtils.PgOps;
+using static TheUtils.Pg;
 
 /// <summary>
 /// Tests for the Pg monad core functionality.
@@ -150,7 +150,7 @@ public class PgMonadTests : IAsyncLifetime
         var env = _fixture.CreatePgEnv();
 
         var query =
-            from e in PgOps.env
+            from e in Pg.env
             select e.Context != null;
 
         var result = await query.RunUnit(env).RunAsync();
@@ -163,7 +163,7 @@ public class PgMonadTests : IAsyncLifetime
         var env = _fixture.CreatePgEnv();
 
         var query =
-            from e in PgOps.env
+            from e in Pg.env
             select e.DefaultIsolation;
 
         var result = await query.RunUnit(env).RunAsync();
@@ -269,7 +269,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
         var query =
             from _ in addRange(users)
             from __ in saveChanges
-            from c in PgOps.count(env.Context.Set<User>())
+            from c in Pg.count(env.Context.Set<User>())
             select c;
 
         var result = await query.RunUnit(env).RunAsync();
