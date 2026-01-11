@@ -125,7 +125,7 @@ public class PgMonadTests : IAsyncLifetime
         var (result, finalState) = await query.Run(env).RunAsync();
 
         // Each add and saveChanges increments operation count
-        finalState.OperationCount.Should().BeGreaterThan(0);
+        finalState.Ops.Should().BeGreaterThan(0);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class PgMonadTests : IAsyncLifetime
         var query =
             from _ in modifyState(s => s with { OperationCount = 100 })
             from s in state
-            select s.OperationCount;
+            select s.Ops;
 
         var result = await query.RunUnit(env).RunAsync();
         result.Should().Be(100);
@@ -168,6 +168,67 @@ public class PgMonadTests : IAsyncLifetime
 
         var result = await query.RunUnit(env).RunAsync();
         result.Should().Be(System.Data.IsolationLevel.ReadCommitted);
+    }
+
+    // ==================== Option Defaults ====================
+
+    [Fact]
+    public void PgState_DefaultOperationCount_ReturnsZero()
+    {
+        var state = new PgState();
+
+        state.OperationCount.IsNone.Should().BeTrue();
+        state.Ops.Should().Be(0);
+    }
+
+    [Fact]
+    public void PgState_ExplicitOperationCount_ReturnsValue()
+    {
+        var state = new PgState(OperationCount: 42);
+
+        state.OperationCount.IsSome.Should().BeTrue();
+        state.Ops.Should().Be(42);
+    }
+
+    [Fact]
+    public void PgState_Initial_HasDefaultValues()
+    {
+        var state = PgState.Initial;
+
+        state.Transaction.IsNone.Should().BeTrue();
+        state.OperationCount.IsNone.Should().BeTrue();
+        state.Ops.Should().Be(0);
+        state.HasTransaction.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PgEnv_DefaultRawConnection_UsesContextConnection()
+    {
+        var context = _fixture.CreateDbContext();
+        var env = new PgEnv(context);
+
+        env.RawConnection.IsNone.Should().BeTrue();
+        env.Connection.Should().NotBeNull();
+    }
+
+    [Fact]
+    public void PgEnv_DefaultCommandTimeout_IsNone()
+    {
+        var context = _fixture.CreateDbContext();
+        var env = new PgEnv(context);
+
+        env.CommandTimeout.IsNone.Should().BeTrue();
+    }
+
+    [Fact]
+    public void PgEnv_ExplicitCommandTimeout_ReturnsValue()
+    {
+        var context = _fixture.CreateDbContext();
+        var timeout = TimeSpan.FromSeconds(30);
+        var env = new PgEnv(context, CommandTimeout: timeout);
+
+        env.CommandTimeout.IsSome.Should().BeTrue();
+        env.CommandTimeout.IfNone(TimeSpan.Zero).Should().Be(timeout);
     }
 
     // ==================== Error Handling ====================

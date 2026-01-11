@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 /// </summary>
 public record PgState(
     Option<IDbContextTransaction> Transaction = default,
-    int OperationCount = 0
+    Option<int> OperationCount = default
 )
 {
     /// <summary>
@@ -23,9 +23,14 @@ public record PgState(
     public bool HasTransaction => Transaction.IsSome;
 
     /// <summary>
+    /// Gets the operation count, defaulting to 0 if not set.
+    /// </summary>
+    public int Ops => OperationCount.IfNone(0);
+
+    /// <summary>
     /// Increment operation count.
     /// </summary>
-    public PgState IncrementOps() => this with { OperationCount = OperationCount + 1 };
+    public PgState IncrementOps() => this with { OperationCount = Ops + 1 };
 
     /// <summary>
     /// Clear the transaction reference.

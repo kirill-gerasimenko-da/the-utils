@@ -2,6 +2,7 @@
 namespace TheUtils;
 
 using System.Data;
+using LanguageExt;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -11,16 +12,16 @@ using Npgsql;
 /// </summary>
 public record PgEnv(
     DbContext Context,
-    NpgsqlConnection? RawConnection = null,
+    Option<NpgsqlConnection> RawConnection = default,
     IsolationLevel DefaultIsolation = IsolationLevel.ReadCommitted,
-    TimeSpan CommandTimeout = default
+    Option<TimeSpan> CommandTimeout = default
 )
 {
     /// <summary>
     /// Gets the Npgsql connection, either from explicit RawConnection or from EF Core context.
     /// </summary>
     public NpgsqlConnection Connection =>
-        RawConnection ?? (NpgsqlConnection)Context.Database.GetDbConnection();
+        RawConnection.IfNone(() => (NpgsqlConnection)Context.Database.GetDbConnection());
 
     /// <summary>
     /// Creates environment from just a DbContext (most common case).

@@ -58,9 +58,9 @@ Read-only configuration passed to all operations:
 ```csharp
 public record PgEnv(
     DbContext Context,
-    NpgsqlConnection? RawConnection = null,
+    Option<NpgsqlConnection> RawConnection = default,
     IsolationLevel DefaultIsolation = IsolationLevel.ReadCommitted,
-    TimeSpan CommandTimeout = default
+    Option<TimeSpan> CommandTimeout = default
 );
 
 // Create from DbContext
@@ -77,7 +77,7 @@ Tracks transaction lifecycle and operation counts:
 ```csharp
 public record PgState(
     Option<IDbContextTransaction> Transaction = default,
-    int OperationCount = 0
+    Option<int> OperationCount = default
 );
 ```
 
