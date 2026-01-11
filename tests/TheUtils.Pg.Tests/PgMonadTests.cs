@@ -428,46 +428,6 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Require_ReturnsValueWhenExists()
-    {
-        var env = _fixture.CreatePgEnv();
-
-        await add(new User { Name = "Required", Email = "required@test.com" })
-            .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
-
-        var result = await require(env.Context.Set<User>().Where(u => u.Email == "required@test.com"))
-            .Run(env).RunAsync();
-
-        result.Name.Should().Be("Required");
-    }
-
-    [Fact]
-    public async Task Require_FailsWhenNotFound()
-    {
-        var env = _fixture.CreatePgEnv();
-
-        var act = async () => await require(env.Context.Set<User>().Where(u => u.Id == -1))
-            .Run(env).RunAsync();
-
-        await act.Should().ThrowAsync<Exception>()
-            .WithMessage("*No matching row found*");
-    }
-
-    [Fact]
-    public async Task Require_FailsWithCustomError()
-    {
-        var env = _fixture.CreatePgEnv();
-        var customError = Error.New("User with ID -1 does not exist");
-
-        var act = async () => await require(env.Context.Set<User>().Where(u => u.Id == -1), customError)
-            .Run(env).RunAsync();
-
-        await act.Should().ThrowAsync<Exception>()
-            .WithMessage("*User with ID -1 does not exist*");
-    }
-
-    [Fact]
     public async Task Any_ChecksExistence()
     {
         var env = _fixture.CreatePgEnv();

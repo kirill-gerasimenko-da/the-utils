@@ -28,9 +28,9 @@ using static TheUtils.Pg;
 var env = new PgEnv(dbContext);
 
 // Define a computation
-Pg<User> getUser(int id) =>
+Pg<Option<User>> getUser(int id) =>
     from users in set<User>()
-    from user in require(users.Where(u => u.Id == id))
+    from user in head(users.Where(u => u.Id == id))
     select user;
 
 // Run it
@@ -93,12 +93,6 @@ Pg<Seq<User>> getAllUsers() =>
 Pg<Option<User>> findUser(string email) =>
     from users in set<User>()
     from user in head(users.Where(u => u.Email == email))
-    select user;
-
-// Require entity (fails if not found)
-Pg<User> getUser(string email) =>
-    from users in set<User>()
-    from user in require(users.Where(u => u.Email == email))
     select user;
 
 // Get single entity with OptionT (for monad transformer chaining)
@@ -260,18 +254,6 @@ var result = await computation.Run(env).RunAsync(cancellationToken);
 ## Error Handling
 
 ```csharp
-// Require entity (fails with default error if not found)
-Pg<User> requireUser(int id) =>
-    from users in set<User>()
-    from user in require(users.Where(u => u.Id == id))
-    select user;
-
-// Require entity with custom error
-Pg<User> requireUserWithError(int id) =>
-    from users in set<User>()
-    from user in require(users.Where(u => u.Id == id), Error.New($"User {id} not found"))
-    select user;
-
 // Catch and handle errors
 Pg<int> safeOperation() =>
     Pg.Catch(
@@ -289,7 +271,6 @@ Pg<int> safeOperation() =>
 | `seq<A>(IQueryable<A>)` | Execute query, return `Seq<A>` |
 | `head<A>(IQueryable<A>)` | First or None (`Pg<Option<A>>`) |
 | `headT<A>(IQueryable<A>)` | First as OptionT (for monad transformer chaining) |
-| `require<A>(IQueryable<A>, Option<Error>)` | First or fail with custom error |
 | `single<A>(IQueryable<A>)` | Exactly one (throws if not) |
 | `any<A>(IQueryable<A>)` | Existence check |
 | `count<A>(IQueryable<A>)` | Row count |
