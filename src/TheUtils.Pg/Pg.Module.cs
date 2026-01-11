@@ -85,7 +85,7 @@ public partial class Pg
     public static Pg<Seq<A>> seq<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO<List<A>>(io => query.ToListAsync(io.Token))
-        select toSeq(r);
+        select toSeq(r).Strict();
 
     /// <summary>
     /// Execute an interpolated SQL query and return results as Seq.
@@ -588,7 +588,7 @@ public partial class Pg
             var list = new List<A>();
             while (await reader.ReadAsync(io.Token))
                 list.Add(mapper(reader));
-            return toSeq(list);
+            return toSeq(list).Strict();
         })
         select results;
 
