@@ -4,12 +4,12 @@ A PostgreSQL monad for functional database operations using [language-ext](https
 
 ## Overview
 
-`TheUtils.Pg` provides a first-class `Pg<A>` monad that wraps `StateT<PgState, ReaderT<PgEnv, IO>, A>`, giving you:
+`TheUtils.Pg` provides a first-class `Pg<A>` monad that wraps `ReaderT<PgEnv, IO, A>`, giving you:
 
 - **Composable database operations** using LINQ query syntax
-- **Automatic transaction state tracking** via `PgState`
 - **Environment-based configuration** via `PgEnv`
 - **Full EF Core integration** for queries and entity operations
+- **Automatic transaction management** via EF Core's `Database.CurrentTransaction`
 - **Npgsql-specific features**: COPY protocol, LISTEN/NOTIFY, advisory locks
 
 ## Installation
@@ -34,7 +34,7 @@ Pg<User> getUser(int id) =>
     select user;
 
 // Run it
-var result = await getUser(42).RunUnit(env).RunAsync();
+var result = await getUser(42).Run(env).RunAsync();
 ```
 
 ## Core Concepts
@@ -43,12 +43,11 @@ var result = await getUser(42).RunUnit(env).RunAsync();
 
 `Pg<A>` is a monad that combines:
 - **Reader** (`PgEnv`) - read-only environment with DbContext and configuration
-- **State** (`PgState`) - mutable state for transaction tracking
 - **IO** - async effects
 
 ```csharp
-// Pg<A> wraps this transformer stack:
-StateT<PgState, ReaderT<PgEnv, IO>, A>
+// Pg<A> wraps this transformer:
+ReaderT<PgEnv, IO, A>
 ```
 
 ### PgEnv (Environment)
@@ -68,17 +67,6 @@ var env = new PgEnv(myDbContext);
 
 // Or with raw Npgsql connection for advanced features
 var env = PgEnv.FromConnection(npgsqlConnection, myDbContext);
-```
-
-### PgState (State)
-
-Tracks transaction lifecycle and operation counts:
-
-```csharp
-public record PgState(
-    Option<IDbContextTransaction> Transaction = default,
-    Option<int> OperationCount = default
-);
 ```
 
 ## Usage Examples
@@ -160,7 +148,7 @@ Pg<Unit> addUsers(Seq<User> users) =>
 ### Transactions
 
 ```csharp
-// Automatic transaction with bracket pattern (guarantees rollback on error/cancellation)
+// Automatic transaction with rollback on error
 Pg<Unit> transferFunds(int fromId, int toId, decimal amount) =>
     transact(
         from sender in single(set<Account>().Bind(a =>
@@ -179,6 +167,11 @@ Pg<Unit> manualTransaction() =>
     from __ in execute($"UPDATE accounts SET balance = balance + 100")
     from ___ in commit
     select unit;
+
+// Check current transaction
+Pg<bool> isInTransaction() =>
+    from tx in currentTransaction
+    select tx.IsSome;
 ```
 
 ### Raw SQL Execution
@@ -227,7 +220,7 @@ Pg<Unit> notifyChange(string payload) =>
 #### Advisory Locks (Distributed Locking)
 
 ```csharp
-// Scoped lock with bracket pattern - guarantees release on completion/error/cancellation
+// Scoped lock - guarantees release on completion/error
 Pg<Unit> processWithLock(long resourceId) =>
     withAdvisoryLock(resourceId,
         from data in loadData(resourceId)
@@ -250,16 +243,11 @@ Pg<bool> tryProcessResource(long id) =>
 ```csharp
 var env = new PgEnv(dbContext);
 
-// Run and get result (discards final state)
-var user = await getUser(42).RunUnit(env).RunAsync();
+// Run and get result
+var user = await getUser(42).Run(env).RunAsync();
 
-// Run and get both result and final state
-var (result, finalState) = await computation.Run(env).RunAsync();
-
-// Run with custom initial state
-var (result, state) = await computation
-    .Run(env, new PgState(OperationCount: 100))
-    .RunAsync();
+// Run with cancellation token
+var result = await computation.Run(env).RunAsync(cancellationToken);
 ```
 
 ## Error Handling
@@ -313,10 +301,11 @@ Pg<int> safeOperation() =>
 ### Transaction Operations
 | Method | Description |
 |--------|-------------|
+| `currentTransaction` | Get current transaction (`Option<IDbContextTransaction>`) |
 | `beginTransaction(Option<IsolationLevel>)` | Start transaction |
 | `commit` | Commit transaction |
 | `rollback` | Rollback transaction |
-| `transact<A>(Pg<A>)` | Bracket-based auto commit/rollback |
+| `transact<A>(Pg<A>)` | Auto commit/rollback wrapper |
 
 ### Npgsql Operations
 | Method | Description |
@@ -325,12 +314,7 @@ Pg<int> safeOperation() =>
 | `listen(channel)` | Subscribe to notifications |
 | `notify(channel, payload)` | Send notification |
 | `advisoryLock(key)` | Acquire advisory lock |
-| `withAdvisoryLock<A>(key, Pg<A>)` | Bracket-based scoped lock |
-
-### Resource Safety
-| Method | Description |
-|--------|-------------|
-| `Pg.Bracket<A,B>(acquire, fin, use)` | Bracket pattern with guaranteed finalization |
+| `withAdvisoryLock<A>(key, Pg<A>)` | Scoped advisory lock |
 
 ## License
 

@@ -20,7 +20,7 @@ using static LanguageExt.Prelude;
 /// </summary>
 public partial class Pg
 {
-    // ==================== Environment & State Access ====================
+    // ==================== Environment Access ====================
 
     /// <summary>
     /// Access the current environment.
@@ -40,21 +40,6 @@ public partial class Pg
     public static Pg<DatabaseFacade> facade =>
         from c in context
         select c.Database;
-
-    /// <summary>
-    /// Access the current state.
-    /// </summary>
-    public static Pg<PgState> state => Stateful.get<Pg, PgState>().As();
-
-    /// <summary>
-    /// Replace the current state.
-    /// </summary>
-    public static Pg<Unit> setState(PgState s) => Stateful.put<Pg, PgState>(s).As();
-
-    /// <summary>
-    /// Modify the current state.
-    /// </summary>
-    public static Pg<Unit> modifyState(Func<PgState, PgState> f) => Stateful.modify<Pg, PgState>(f).As();
 
     // ==================== IO Lifting ====================
 
@@ -100,7 +85,6 @@ public partial class Pg
     public static Pg<Seq<A>> seq<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO<List<A>>(io => query.ToListAsync(io.Token))
-        from __ in modifyState(s => s.IncrementOps())
         select toSeq(r);
 
     /// <summary>
@@ -125,7 +109,6 @@ public partial class Pg
     public static Pg<bool> any<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO<bool>(io => query.AnyAsync(io.Token))
-        from __ in modifyState(s => s.IncrementOps())
         select r;
 
     /// <summary>
@@ -142,7 +125,6 @@ public partial class Pg
     public static Pg<int> count<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO<int>(io => query.CountAsync(io.Token))
-        from __ in modifyState(s => s.IncrementOps())
         select r;
 
     /// <summary>
@@ -159,7 +141,6 @@ public partial class Pg
     public static Pg<Option<A>> head<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO<A>(io => query.FirstOrDefaultAsync(io.Token)!)
-        from __ in modifyState(s => s.IncrementOps())
         select Optional(r);
 
     /// <summary>
@@ -210,7 +191,6 @@ public partial class Pg
     public static Pg<A> single<A>(IQueryable<A> query) =>
         from _ in context
         from r in liftIO<A>(io => query.SingleAsync(io.Token))
-        from __ in modifyState(s => s.IncrementOps())
         select r;
 
     /// <summary>
@@ -250,7 +230,6 @@ public partial class Pg
     public static Pg<EntityEntry<A>> add<A>(A entity) where A : class =>
         from s in set<A>()
         from e in liftIO<EntityEntry<A>>(io => s.AddAsync(entity, io.Token).AsTask())
-        from _ in modifyState(st => st.IncrementOps())
         select e;
 
     /// <summary>
@@ -263,7 +242,6 @@ public partial class Pg
             await s.AddRangeAsync(entities, io.Token);
             return unit;
         })
-        from __ in modifyState(st => st.IncrementOps())
         select unit;
 
     /// <summary>
@@ -271,7 +249,6 @@ public partial class Pg
     /// </summary>
     public static Pg<EntityEntry<A>> update<A>(A entity) where A : class =>
         from s in set<A>()
-        from _ in modifyState(st => st.IncrementOps())
         select s.Update(entity);
 
     /// <summary>
@@ -284,7 +261,6 @@ public partial class Pg
             s.UpdateRange(entities);
             return unit;
         })
-        from __ in modifyState(st => st.IncrementOps())
         select unit;
 
     /// <summary>
@@ -292,7 +268,6 @@ public partial class Pg
     /// </summary>
     public static Pg<EntityEntry<A>> delete<A>(A entity) where A : class =>
         from s in set<A>()
-        from _ in modifyState(st => st.IncrementOps())
         select s.Remove(entity);
 
     /// <summary>
@@ -305,7 +280,6 @@ public partial class Pg
             s.RemoveRange(entities);
             return unit;
         })
-        from __ in modifyState(st => st.IncrementOps())
         select unit;
 
     /// <summary>
@@ -324,7 +298,6 @@ public partial class Pg
     public static Pg<int> execute(FormattableString sql) =>
         from f in facade
         from n in liftIO<int>(io => f.ExecuteSqlAsync(sql, io.Token))
-        from _ in modifyState(s => s.IncrementOps())
         select n;
 
     /// <summary>
@@ -333,64 +306,68 @@ public partial class Pg
     public static Pg<int> executeRaw(string sql, Seq<object> @params = default) =>
         from f in facade
         from n in liftIO<int>(io => f.ExecuteSqlRawAsync(sql, @params.ToArray(), io.Token))
-        from _ in modifyState(s => s.IncrementOps())
         select n;
 
     // ==================== Transaction Management ====================
 
     /// <summary>
-    /// Begin a new transaction with optional isolation level.
+    /// Get the current transaction from EF Core (if any).
     /// </summary>
-    public static Pg<Unit> beginTransaction(Option<IsolationLevel> level = default) =>
+    public static Pg<Option<IDbContextTransaction>> currentTransaction =>
+        from c in context
+        select Optional(c.Database.CurrentTransaction);
+
+    /// <summary>
+    /// Begin a new transaction with optional isolation level.
+    /// EF Core tracks the transaction automatically via Database.CurrentTransaction.
+    /// </summary>
+    public static Pg<IDbContextTransaction> beginTransaction(Option<IsolationLevel> level = default) =>
         from e in env
-        from s in state
-        from t in liftIO<IDbContextTransaction>(io => e.Context.Database.BeginTransactionAsync(
-            level.IfNone(e.DefaultIsolation), io.Token))
-        from _ in setState(s with { Transaction = Some(t) })
-        select unit;
+        from t in liftIO<IDbContextTransaction>(io =>
+            e.Context.Database.BeginTransactionAsync(level.IfNone(e.DefaultIsolation), io.Token))
+        select t;
 
     /// <summary>
     /// Commit the current transaction.
     /// </summary>
     public static Pg<Unit> commit =>
-        from s in state
-        from _ in s.Transaction.Match(
-            Some: t => liftIO<Unit>(async io =>
-            {
-                await t.CommitAsync(io.Token);
-                return unit;
-            }),
-            None: () => pure(unit))
-        from __ in modifyState(st => st.ClearTransaction())
+        from c in context
+        from _ in liftIO<Unit>(async io =>
+        {
+            if (c.Database.CurrentTransaction is { } txn)
+                await txn.CommitAsync(io.Token);
+            return unit;
+        })
         select unit;
 
     /// <summary>
     /// Rollback the current transaction.
     /// </summary>
     public static Pg<Unit> rollback =>
-        from s in state
-        from _ in s.Transaction.Match(
-            Some: t => liftIO<Unit>(async io =>
-            {
-                await t.RollbackAsync(io.Token);
-                return unit;
-            }),
-            None: () => pure(unit))
-        from __ in modifyState(st => st.ClearTransaction())
+        from c in context
+        from _ in liftIO<Unit>(async io =>
+        {
+            if (c.Database.CurrentTransaction is { } txn)
+                await txn.RollbackAsync(io.Token);
+            return unit;
+        })
         select unit;
 
     /// <summary>
     /// Execute an operation within a transaction with automatic commit/rollback.
-    /// Uses bracket pattern: commit on success, rollback on any error/cancellation.
+    /// Commits on success, rolls back on any error.
     /// </summary>
     public static Pg<A> transact<A>(Pg<A> operation, Option<IsolationLevel> level = default) =>
-        Pg.Bracket(
-            beginTransaction(level),
-            _ => rollback,
-            _ => from r in operation
-                 from __ in commit
-                 select r
-        );
+        from _ in beginTransaction(level)
+        from r in Pg.Catch(
+            from result in operation
+            from __ in commit
+            select result,
+            _ => true,
+            e => from __ in rollback
+                 from ___ in fail<A>(e)
+                 select default(A)!).As()
+        select r;
 
     // ==================== Npgsql-Specific: COPY Protocol ====================
 
@@ -429,7 +406,6 @@ public partial class Pg
             }
             return await writer.CompleteAsync(io.Token);
         })
-        from _ in modifyState(s => s.IncrementOps())
         select count;
 
     /// <summary>
@@ -550,14 +526,16 @@ public partial class Pg
 
     /// <summary>
     /// Execute an operation while holding an advisory lock.
-    /// Uses bracket pattern: always releases lock on completion.
+    /// Releases lock on completion or error.
     /// </summary>
     public static Pg<A> withAdvisoryLock<A>(long key, Pg<A> operation) =>
-        Pg.Bracket(
-            advisoryLock(key),
-            _ => advisoryUnlock(key),
-            _ => operation
-        );
+        from _ in advisoryLock(key)
+        from r in Pg.Catch(operation, _ => true, e =>
+            from __ in advisoryUnlock(key)
+            from ___ in fail<A>(e)
+            select default(A)!).As()
+        from ___ in advisoryUnlock(key)
+        select r;
 
     // ==================== Npgsql-Specific: Raw Queries ====================
 
@@ -582,7 +560,6 @@ public partial class Pg
                 list.Add(mapper(reader));
             return toSeq(list);
         })
-        from _ in modifyState(s => s.IncrementOps())
         select results;
 
     /// <summary>
@@ -602,7 +579,6 @@ public partial class Pg
                 ? Option<A>.None
                 : Some((A)scalar);
         })
-        from _ in modifyState(s => s.IncrementOps())
         select result;
 
     // ==================== Npgsql-Specific: JSONB ====================
@@ -631,7 +607,6 @@ public partial class Pg
                 ? Option<A>.None
                 : Some(JsonConvert.DeserializeObject<A>(scalar.ToString()!)!);
         })
-        from _ in modifyState(s => s.IncrementOps())
         select result;
 }
 

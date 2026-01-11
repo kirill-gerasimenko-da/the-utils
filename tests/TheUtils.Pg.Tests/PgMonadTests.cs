@@ -37,8 +37,8 @@ public class PgMonadTests : IAsyncLifetime
         var left = pure(value).Bind(f);
         var right = f(value);
 
-        var leftResult = await left.RunUnit(env).RunAsync();
-        var rightResult = await right.RunUnit(env).RunAsync();
+        var leftResult = await left.Run(env).RunAsync();
+        var rightResult = await right.Run(env).RunAsync();
 
         leftResult.Should().Be(rightResult);
     }
@@ -52,8 +52,8 @@ public class PgMonadTests : IAsyncLifetime
 
         var left = m.Bind(x => pure(x));
 
-        var leftResult = await left.RunUnit(env).RunAsync();
-        var rightResult = await m.RunUnit(env).RunAsync();
+        var leftResult = await left.Run(env).RunAsync();
+        var rightResult = await m.Run(env).RunAsync();
 
         leftResult.Should().Be(rightResult);
     }
@@ -70,8 +70,8 @@ public class PgMonadTests : IAsyncLifetime
         var left = m.Bind(f).Bind(g);
         var right = m.Bind(x => f(x).Bind(g));
 
-        var leftResult = await left.RunUnit(env).RunAsync();
-        var rightResult = await right.RunUnit(env).RunAsync();
+        var leftResult = await left.Run(env).RunAsync();
+        var rightResult = await right.Run(env).RunAsync();
 
         leftResult.Should().Be(rightResult);
     }
@@ -88,7 +88,7 @@ public class PgMonadTests : IAsyncLifetime
             from y in pure(20)
             select x + y;
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.Should().Be(30);
     }
 
@@ -103,43 +103,9 @@ public class PgMonadTests : IAsyncLifetime
             from found in head(env.Context.Set<User>().Where(u => u.Email == "test@example.com"))
             select found;
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.IsSome.Should().BeTrue();
         result.IfSome(u => u.Name.Should().Be("Test"));
-    }
-
-    // ==================== State Management ====================
-
-    [Fact]
-    public async Task State_TracksOperationCount()
-    {
-        var env = _fixture.CreatePgEnv();
-
-        var query =
-            from _ in add(new User { Name = "User1", Email = "user1@test.com" })
-            from __ in add(new User { Name = "User2", Email = "user2@test.com" })
-            from ___ in saveChanges
-            from s in state
-            select s;
-
-        var (result, finalState) = await query.Run(env).RunAsync();
-
-        // Each add and saveChanges increments operation count
-        finalState.Ops.Should().BeGreaterThan(0);
-    }
-
-    [Fact]
-    public async Task State_ModifyWorks()
-    {
-        var env = _fixture.CreatePgEnv();
-
-        var query =
-            from _ in modifyState(s => s with { OperationCount = 100 })
-            from s in state
-            select s.Ops;
-
-        var result = await query.RunUnit(env).RunAsync();
-        result.Should().Be(100);
     }
 
     // ==================== Environment Access ====================
@@ -153,7 +119,7 @@ public class PgMonadTests : IAsyncLifetime
             from e in Pg.env
             select e.Context != null;
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.Should().BeTrue();
     }
 
@@ -166,40 +132,11 @@ public class PgMonadTests : IAsyncLifetime
             from e in Pg.env
             select e.DefaultIsolation;
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.Should().Be(System.Data.IsolationLevel.ReadCommitted);
     }
 
-    // ==================== Option Defaults ====================
-
-    [Fact]
-    public void PgState_DefaultOperationCount_ReturnsZero()
-    {
-        var state = new PgState();
-
-        state.OperationCount.IsNone.Should().BeTrue();
-        state.Ops.Should().Be(0);
-    }
-
-    [Fact]
-    public void PgState_ExplicitOperationCount_ReturnsValue()
-    {
-        var state = new PgState(OperationCount: 42);
-
-        state.OperationCount.IsSome.Should().BeTrue();
-        state.Ops.Should().Be(42);
-    }
-
-    [Fact]
-    public void PgState_Initial_HasDefaultValues()
-    {
-        var state = PgState.Initial;
-
-        state.Transaction.IsNone.Should().BeTrue();
-        state.OperationCount.IsNone.Should().BeTrue();
-        state.Ops.Should().Be(0);
-        state.HasTransaction.Should().BeFalse();
-    }
+    // ==================== PgEnv Option Defaults ====================
 
     [Fact]
     public void PgEnv_DefaultRawConnection_UsesContextConnection()
@@ -242,7 +179,7 @@ public class PgMonadTests : IAsyncLifetime
         var query = add(new User { Name = "BindTest", Email = "bind@test.com" })
             .Bind(_ => saveChanges);
 
-        await query.RunUnit(env).RunAsync();
+        await query.Run(env).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "bind@test.com");
@@ -258,7 +195,7 @@ public class PgMonadTests : IAsyncLifetime
 
         var query = fail<int>("Test error");
 
-        var act = async () => await query.RunUnit(env).RunAsync();
+        var act = async () => await query.Run(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*Test error*");
@@ -275,7 +212,7 @@ public class PgMonadTests : IAsyncLifetime
             _ => pure(42)
         ).As();
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.Should().Be(42);
     }
 
@@ -290,7 +227,7 @@ public class PgMonadTests : IAsyncLifetime
             _ => pure(42)
         ).As();
 
-        var act = async () => await query.RunUnit(env).RunAsync();
+        var act = async () => await query.Run(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*Original error*");
@@ -325,7 +262,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from _ in saveChanges
             select entry.Entity.Id;
 
-        var id = await query.RunUnit(env).RunAsync();
+        var id = await query.Run(env).RunAsync();
 
         id.Should().BeGreaterThan(0);
 
@@ -351,7 +288,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from c in Pg.count(env.Context.Set<User>())
             select c;
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.Should().Be(2);
     }
 
@@ -366,7 +303,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from _ in saveChanges
             select entry.Entity;
 
-        var user = await setupQuery.RunUnit(env).RunAsync();
+        var user = await setupQuery.Run(env).RunAsync();
 
         // Update
         user.Name = "David";
@@ -375,7 +312,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from __ in saveChanges
             select unit;
 
-        await updateQuery.RunUnit(env).RunAsync();
+        await updateQuery.Run(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -394,7 +331,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from _ in saveChanges
             select entry.Entity;
 
-        var user = await setupQuery.RunUnit(env).RunAsync();
+        var user = await setupQuery.Run(env).RunAsync();
 
         // Delete
         var deleteQuery =
@@ -402,7 +339,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from __ in saveChanges
             select unit;
 
-        await deleteQuery.RunUnit(env).RunAsync();
+        await deleteQuery.Run(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -427,11 +364,11 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             from __ in saveChanges
             select unit;
 
-        await setup.RunUnit(env).RunAsync();
+        await setup.Run(env).RunAsync();
 
         // Query
         var query = seq(env.Context.Set<User>());
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
 
         result.Count.Should().Be(3);
     }
@@ -443,16 +380,16 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
 
         // Empty query
         var emptyResult = await head(env.Context.Set<User>().Where(u => u.Id == -1))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
         emptyResult.IsNone.Should().BeTrue();
 
         // With data
         await add(new User { Name = "Frank", Email = "frank@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         var result = await head(env.Context.Set<User>())
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
         result.IsSome.Should().BeTrue();
     }
 
@@ -463,7 +400,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
 
         await add(new User { Name = "HeadT", Email = "headt@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         // headT returns OptionT - chain with Map then Run to get Pg<Option<A>>
         var query = headT(env.Context.Set<User>().Where(u => u.Email == "headt@test.com"))
@@ -471,7 +408,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             .Run()
             .As();
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.IsSome.Should().BeTrue();
         result.IfSome(name => name.Should().Be("HeadT"));
     }
@@ -486,7 +423,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             .Run()
             .As();
 
-        var result = await query.RunUnit(env).RunAsync();
+        var result = await query.Run(env).RunAsync();
         result.IsNone.Should().BeTrue();
     }
 
@@ -497,10 +434,10 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
 
         await add(new User { Name = "Required", Email = "required@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         var result = await require(env.Context.Set<User>().Where(u => u.Email == "required@test.com"))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         result.Name.Should().Be("Required");
     }
@@ -511,7 +448,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
         var env = _fixture.CreatePgEnv();
 
         var act = async () => await require(env.Context.Set<User>().Where(u => u.Id == -1))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*No matching row found*");
@@ -524,7 +461,7 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
         var customError = Error.New("User with ID -1 does not exist");
 
         var act = async () => await require(env.Context.Set<User>().Where(u => u.Id == -1), customError)
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*User with ID -1 does not exist*");
@@ -536,15 +473,15 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
         var env = _fixture.CreatePgEnv();
 
         var beforeAdd = await any(env.Context.Set<User>().Where(u => u.Email == "grace@test.com"))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
         beforeAdd.Should().BeFalse();
 
         await add(new User { Name = "Grace", Email = "grace@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         var afterAdd = await any(env.Context.Set<User>().Where(u => u.Email == "grace@test.com"))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
         afterAdd.Should().BeTrue();
     }
 
@@ -557,10 +494,10 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
             new User { Name = "H1", Email = "h1@test.com" },
             new User { Name = "H2", Email = "h2@test.com" }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .RunUnit(env).RunAsync();
+          .Run(env).RunAsync();
 
         var result = await count(env.Context.Set<User>())
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
         result.Should().Be(2);
     }
 
@@ -571,10 +508,10 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
 
         await add(new User { Name = "Ivan", Email = "ivan@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         var result = await single(env.Context.Set<User>().Where(u => u.Email == "ivan@test.com"))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
         result.Name.Should().Be("Ivan");
     }
 
@@ -587,10 +524,10 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
 
         await add(new User { Name = "Julia", Email = "julia@test.com", Balance = 50 })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         var affected = await execute($"UPDATE users SET balance = 200 WHERE email = 'julia@test.com'")
-            .RunUnit(env).RunAsync();
+            .Run(env).RunAsync();
 
         affected.Should().Be(1);
 
@@ -627,7 +564,7 @@ public class PgTransactionTests : IAsyncLifetime
             select unit
         );
 
-        await query.RunUnit(env).RunAsync();
+        await query.Run(env).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "committed@test.com");
@@ -646,7 +583,7 @@ public class PgTransactionTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.RunUnit(env).RunAsync();
+        var act = async () => await query.Run(env).RunAsync();
         await act.Should().ThrowAsync<Exception>();
 
         await using var verifyContext = _fixture.CreateDbContext();
@@ -655,22 +592,24 @@ public class PgTransactionTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Transaction_TracksStateCorrectly()
+    public async Task Transaction_CanCheckCurrentTransaction()
     {
         var env = _fixture.CreatePgEnv();
 
-        var query =
-            from _ in beginTransaction()
-            from s1 in state
-            from __ in add(new User { Name = "TxUser", Email = "txuser@test.com" })
-            from ___ in saveChanges
-            from ____ in commit
-            from s2 in state
-            select (HasTxBefore: s1.HasTransaction, HasTxAfter: s2.HasTransaction);
+        // Before transaction - no current transaction
+        var beforeTx = await currentTransaction.Run(env).RunAsync();
+        beforeTx.IsNone.Should().BeTrue();
 
-        var (result, _) = await query.Run(env).RunAsync();
+        // Inside transaction - has current transaction
+        var insideQuery = transact(
+            from tx in currentTransaction
+            select tx.IsSome
+        );
+        var insideTx = await insideQuery.Run(env).RunAsync();
+        insideTx.Should().BeTrue();
 
-        result.HasTxBefore.Should().BeTrue();
-        result.HasTxAfter.Should().BeFalse();
+        // After transaction - no current transaction
+        var afterTx = await currentTransaction.Run(env).RunAsync();
+        afterTx.IsNone.Should().BeTrue();
     }
 }

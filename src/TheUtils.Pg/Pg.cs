@@ -6,36 +6,17 @@ using LanguageExt.Traits;
 using static LanguageExt.Prelude;
 
 /// <summary>
-/// The PostgreSQL monad - wraps StateT&lt;PgState, ReaderT&lt;PgEnv, IO&gt;, A&gt;.
-/// Provides stateful, effectful PostgreSQL database operations with automatic transaction tracking.
+/// The PostgreSQL monad - wraps ReaderT&lt;PgEnv, IO, A&gt;.
+/// Provides effectful PostgreSQL database operations with environment access.
 /// </summary>
 public readonly record struct Pg<A>(
-    StateT<PgState, ReaderT<PgEnv, IO>, A> runPg
+    ReaderT<PgEnv, IO, A> runPg
 ) : K<Pg, A>
 {
     /// <summary>
-    /// Run the computation with explicit environment and initial state.
+    /// Run the computation with the provided environment.
     /// </summary>
-    public IO<(A Value, PgState State)> Run(PgEnv env, PgState state) =>
-        runPg.Run(state).Run(env).As();
-
-    /// <summary>
-    /// Run the computation with default initial state.
-    /// </summary>
-    public IO<(A Value, PgState State)> Run(PgEnv env) =>
-        Run(env, PgState.Initial);
-
-    /// <summary>
-    /// Run the computation and discard the final state.
-    /// </summary>
-    public IO<A> RunUnit(PgEnv env) =>
-        Run(env).Map(t => t.Value);
-
-    /// <summary>
-    /// Run the computation and return only the final state.
-    /// </summary>
-    public IO<PgState> RunState(PgEnv env) =>
-        Run(env).Map(t => t.State);
+    public IO<A> Run(PgEnv env) => runPg.Run(env).As();
 
     // LINQ query syntax support
     public Pg<B> Map<B>(Func<A, B> f) => new(runPg.Map(f));
@@ -47,24 +28,23 @@ public readonly record struct Pg<A>(
 
 /// <summary>
 /// Pg witness type with trait implementations.
-/// Uses Deriving for Monad and Stateful; manual for MonadIO, Fallible, Readable.
+/// Uses Deriving for Monad; manual for MonadIO, Fallible, Readable.
 /// </summary>
 public partial class Pg :
-    Deriving.Monad<Pg, StateT<PgState, ReaderT<PgEnv, IO>>>,
-    Deriving.Stateful<Pg, StateT<PgState, ReaderT<PgEnv, IO>>, PgState>
+    Deriving.Monad<Pg, ReaderT<PgEnv, IO>>
 {
     // ========== Deriving Morphisms (Required) ==========
 
     /// <summary>
-    /// Transform Pg to the underlying StateT transformer.
+    /// Transform Pg to the underlying ReaderT transformer.
     /// </summary>
-    public static K<StateT<PgState, ReaderT<PgEnv, IO>>, A> Transform<A>(K<Pg, A> fa) =>
+    public static K<ReaderT<PgEnv, IO>, A> Transform<A>(K<Pg, A> fa) =>
         fa.As().runPg;
 
     /// <summary>
-    /// CoTransform from StateT back to Pg.
+    /// CoTransform from ReaderT back to Pg.
     /// </summary>
-    public static K<Pg, A> CoTransform<A>(K<StateT<PgState, ReaderT<PgEnv, IO>>, A> fa) =>
+    public static K<Pg, A> CoTransform<A>(K<ReaderT<PgEnv, IO>, A> fa) =>
         new Pg<A>(fa.As());
 
     // ========== Convenience ==========
@@ -87,7 +67,7 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
     /// Lift an IO computation into Pg.
     /// </summary>
     public static K<Pg, A> LiftIO<A>(IO<A> io) =>
-        CoTransform(MonadIO.liftIO<StateT<PgState, ReaderT<PgEnv, IO>>, A>(io));
+        CoTransform(MonadIO.liftIO<ReaderT<PgEnv, IO>, A>(io));
 
     // ========== Fallible ==========
 
@@ -107,12 +87,11 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
         Func<Error, K<Pg, A>> handler)
     {
         return new Pg<A>(
-            new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
-                new ReaderT<PgEnv, IO, (A, PgState)>(env =>
-                    ma.As().Run(env, state).Catch(err =>
-                        predicate(err)
-                            ? handler(err).As().Run(env, state)
-                            : IO.fail<(A, PgState)>(err)))));
+            new ReaderT<PgEnv, IO, A>(env =>
+                ma.As().Run(env).Catch(err =>
+                    predicate(err)
+                        ? handler(err).As().Run(env)
+                        : IO.fail<A>(err))));
     }
 
     // ========== Readable ==========
@@ -121,53 +100,15 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
     /// Access the environment via a projection function.
     /// </summary>
     public static K<Pg, A> Asks<A>(Func<PgEnv, A> f) =>
-        new Pg<A>(new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
-            Readable.asks<ReaderT<PgEnv, IO>, PgEnv, (A, PgState)>(env => (f(env), state))));
+        new Pg<A>(Readable.asks<ReaderT<PgEnv, IO>, PgEnv, A>(f).As());
 
     /// <summary>
     /// Run a computation with a locally modified environment.
     /// </summary>
     public static K<Pg, A> Local<A>(Func<PgEnv, PgEnv> f, K<Pg, A> ma)
     {
-        return new Pg<A>(
-            new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
-                Readable.local(f, ma.As().runPg.Run(state))));
+        return new Pg<A>(Readable.local(f, ma.As().runPg).As());
     }
-}
-
-/// <summary>
-/// Bracket pattern implementation for resource safety.
-/// </summary>
-public partial class Pg
-{
-    /// <summary>
-    /// Bracket pattern - acquire resource, use it, finalize.
-    /// Finalize runs regardless of success/failure/cancellation via try/finally.
-    /// Note: State changes during finalization are discarded.
-    /// </summary>
-    public static Pg<B> Bracket<A, B>(
-        K<Pg, A> acquire,
-        Func<A, K<Pg, Unit>> fin,
-        Func<A, K<Pg, B>> use) =>
-        new Pg<B>(new StateT<PgState, ReaderT<PgEnv, IO>, B>(state =>
-            new ReaderT<PgEnv, IO, (B, PgState)>(env =>
-                IO.liftAsync(async envIO =>
-                {
-                    var (resource, stateAfterAcquire) = await acquire.As().Run(env, state).RunAsync(envIO);
-                    try
-                    {
-                        return await use(resource).As().Run(env, stateAfterAcquire).RunAsync(envIO);
-                    }
-                    finally
-                    {
-                        // Finalize always runs - swallow errors to not mask original error
-                        try
-                        {
-                            await fin(resource).As().Run(env, stateAfterAcquire).RunAsync(envIO);
-                        }
-                        catch { /* intentionally swallow finalization errors */ }
-                    }
-                }))));
 }
 
 /// <summary>
