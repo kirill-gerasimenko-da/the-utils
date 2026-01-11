@@ -231,6 +231,24 @@ public class PgMonadTests : IAsyncLifetime
         env.CommandTimeout.IfNone(TimeSpan.Zero).Should().Be(timeout);
     }
 
+    // ==================== Sequencing Operators ====================
+
+    [Fact]
+    public async Task Bind_SequencesOperations()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // Using Bind with lambda to sequence operations
+        var query = add(new User { Name = "BindTest", Email = "bind@test.com" })
+            .Bind(_ => saveChanges);
+
+        await query.RunUnit(env).RunAsync();
+
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "bind@test.com");
+        user.Should().NotBeNull();
+    }
+
     // ==================== Error Handling ====================
 
     [Fact]

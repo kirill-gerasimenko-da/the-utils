@@ -144,22 +144,17 @@ Pg<User> createUser(string name, string email) =>
 
 // Update entity
 Pg<Unit> updateUserName(User user, string newName) =>
-    from _ in pure(user.Name = newName)
-    from __ in update(user)
-    from ___ in saveChanges
-    select unit;
+    pure(user.Name = newName)
+        .Bind(_ => update(user))
+        .Bind(_ => saveChanges);
 
 // Delete entity
 Pg<Unit> deleteUser(User user) =>
-    from _ in delete(user)
-    from __ in saveChanges
-    select unit;
+    delete(user).Bind(_ => saveChanges);
 
 // Bulk operations
 Pg<Unit> addUsers(Seq<User> users) =>
-    from _ in addRange(users)
-    from __ in saveChanges
-    select unit;
+    addRange(users).Bind(_ => saveChanges);
 ```
 
 ### Transactions
