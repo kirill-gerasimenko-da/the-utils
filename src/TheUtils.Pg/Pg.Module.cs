@@ -453,6 +453,8 @@ public partial class Pg
         from e in env
         from _ in liftIO<Unit>(async io =>
         {
+            if (e.Connection.State != ConnectionState.Open)
+                await e.Connection.OpenAsync(io.Token);
             await using var cmd = e.Connection.CreateCommand();
             cmd.CommandText = string.IsNullOrEmpty(payload)
                 ? $"NOTIFY {channel}"
@@ -610,8 +612,8 @@ public partial class Pg
             cmd.CommandText = vars.IsNone
                 ? $"SELECT jsonb_path_query_first({jsonColumn}, $1) FROM {table}"
                 : $"SELECT jsonb_path_query_first({jsonColumn}, $1, $2) FROM {table}";
-            cmd.Parameters.AddWithValue(jsonPath);
-            vars.IfSome(v => cmd.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Jsonb, v));
+            cmd.Parameters.Add(new NpgsqlParameter { Value = jsonPath, NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.JsonPath });
+            vars.IfSome(v => cmd.Parameters.Add(new NpgsqlParameter { Value = v, NpgsqlDbType = NpgsqlTypes.NpgsqlDbType.Jsonb }));
             var scalar = await cmd.ExecuteScalarAsync(io.Token);
             return scalar == null || scalar == DBNull.Value
                 ? Option<A>.None
