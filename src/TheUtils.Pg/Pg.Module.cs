@@ -324,7 +324,7 @@ public partial class Pg
     public static Pg<IDbContextTransaction> beginTransaction(Option<IsolationLevel> level = default) =>
         from e in env
         from t in liftIO<IDbContextTransaction>(io =>
-            e.Context.Database.BeginTransactionAsync(level.IfNone(e.DefaultIsolation), io.Token))
+            e.Context.Database.BeginTransactionAsync((level | e.DefaultIsolation).IfNone(IsolationLevel.Unspecified), io.Token))
         select t;
 
     /// <summary>

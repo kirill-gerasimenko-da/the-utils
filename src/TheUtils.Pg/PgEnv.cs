@@ -13,7 +13,7 @@ using Npgsql;
 public record PgEnv(
     DbContext Context,
     Option<NpgsqlConnection> RawConnection = default,
-    IsolationLevel DefaultIsolation = IsolationLevel.ReadCommitted,
+    Option<IsolationLevel> DefaultIsolation = default,
     Option<TimeSpan> CommandTimeout = default
 )
 {

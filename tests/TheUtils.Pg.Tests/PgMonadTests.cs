@@ -133,7 +133,7 @@ public class PgMonadTests : IAsyncLifetime
             select e.DefaultIsolation;
 
         var result = await query.Run(env).RunAsync();
-        result.Should().Be(System.Data.IsolationLevel.ReadCommitted);
+        result.IsNone.Should().BeTrue();
     }
 
     // ==================== PgEnv Option Defaults ====================
