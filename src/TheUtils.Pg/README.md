@@ -30,11 +30,8 @@ var env = new PgEnv(dbContext);
 // Define a computation
 Pg<User> getUser(int id) =>
     from users in set<User>()
-    from user in head(users.Where(u => u.Id == id))
-    from _ in user.Match(
-        Some: _ => pure(unit),
-        None: () => fail<Unit>("User not found"))
-    select user.ValueUnsafe();
+    from user in require(users.Where(u => u.Id == id))
+    select user;
 
 // Run it
 var result = await getUser(42).RunUnit(env).RunAsync();
@@ -101,6 +98,12 @@ Pg<Seq<User>> getAllUsers() =>
 Pg<Option<User>> findUser(string email) =>
     from users in set<User>()
     from user in head(users.Where(u => u.Email == email))
+    select user;
+
+// Require entity (fails if not found)
+Pg<User> getUser(string email) =>
+    from users in set<User>()
+    from user in require(users.Where(u => u.Email == email))
     select user;
 
 // Check existence
@@ -258,13 +261,17 @@ var (result, state) = await computation
 ## Error Handling
 
 ```csharp
-// Fail with error
+// Require entity (fails with default error if not found)
 Pg<User> requireUser(int id) =>
-    from user in findUser(id)
-    from result in user.Match(
-        Some: u => pure(u),
-        None: () => fail<User>(Error.New($"User {id} not found")))
-    select result;
+    from users in set<User>()
+    from user in require(users.Where(u => u.Id == id))
+    select user;
+
+// Require entity with custom error
+Pg<User> requireUserWithError(int id) =>
+    from users in set<User>()
+    from user in require(users.Where(u => u.Id == id), Error.New($"User {id} not found"))
+    select user;
 
 // Catch and handle errors
 Pg<int> safeOperation() =>
@@ -281,7 +288,9 @@ Pg<int> safeOperation() =>
 | Method | Description |
 |--------|-------------|
 | `seq<A>(IQueryable<A>)` | Execute query, return `Seq<A>` |
-| `head<A>(IQueryable<A>)` | First or None |
+| `head<A>(IQueryable<A>)` | First or None (`Pg<Option<A>>`) |
+| `headT<A>(IQueryable<A>)` | First as OptionT (for monad transformer chaining) |
+| `require<A>(IQueryable<A>, Option<Error>)` | First or fail with custom error |
 | `single<A>(IQueryable<A>)` | Exactly one (throws if not) |
 | `any<A>(IQueryable<A>)` | Existence check |
 | `count<A>(IQueryable<A>)` | Row count |

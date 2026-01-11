@@ -170,6 +170,40 @@ public partial class Pg
         from r in head(q)
         select r;
 
+    // ==================== headT (OptionT variant) ====================
+
+    /// <summary>
+    /// Get the first row as OptionT (for monad transformer chaining).
+    /// </summary>
+    public static OptionT<Pg, A> headT<A>(IQueryable<A> query) =>
+        OptionT.lift(head(query));
+
+    /// <summary>
+    /// Get the first row from interpolated SQL as OptionT.
+    /// </summary>
+    public static OptionT<Pg, A> headT<A>(FormattableString sql) where A : class =>
+        OptionT.lift(head<A>(sql));
+
+    // ==================== require (fails on None) ====================
+
+    /// <summary>
+    /// Get the first row or fail if not found.
+    /// </summary>
+    public static Pg<A> require<A>(IQueryable<A> query, Option<Error> error = default) =>
+        from opt in head(query)
+        from result in opt.Match(
+            Some: pure,
+            None: () => fail<A>(error.IfNone(Error.New("No matching row found"))))
+        select result;
+
+    /// <summary>
+    /// Get the first row from interpolated SQL or fail if not found.
+    /// </summary>
+    public static Pg<A> require<A>(FormattableString sql, Option<Error> error = default) where A : class =>
+        from q in Pg.query<A>(sql)
+        from r in require(q, error)
+        select r;
+
     /// <summary>
     /// Get exactly one row (throws if not exactly one).
     /// </summary>

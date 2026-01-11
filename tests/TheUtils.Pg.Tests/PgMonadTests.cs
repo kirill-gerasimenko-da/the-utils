@@ -378,6 +378,80 @@ public class PgDatabaseOperationsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task HeadT_ReturnsValueWhenExists()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        await add(new User { Name = "HeadT", Email = "headt@test.com" })
+            .Bind(_ => saveChanges.Map(_ => unit))
+            .RunUnit(env).RunAsync();
+
+        // headT returns OptionT - chain with Map then Run to get Pg<Option<A>>
+        var query = headT(env.Context.Set<User>().Where(u => u.Email == "headt@test.com"))
+            .Map(u => u.Name)
+            .Run()
+            .As();
+
+        var result = await query.RunUnit(env).RunAsync();
+        result.IsSome.Should().BeTrue();
+        result.IfSome(name => name.Should().Be("HeadT"));
+    }
+
+    [Fact]
+    public async Task HeadT_ReturnsNoneWhenNotFound()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // headT returns OptionT - when no row found, result is None
+        var query = headT(env.Context.Set<User>().Where(u => u.Id == -1))
+            .Run()
+            .As();
+
+        var result = await query.RunUnit(env).RunAsync();
+        result.IsNone.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Require_ReturnsValueWhenExists()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        await add(new User { Name = "Required", Email = "required@test.com" })
+            .Bind(_ => saveChanges.Map(_ => unit))
+            .RunUnit(env).RunAsync();
+
+        var result = await require(env.Context.Set<User>().Where(u => u.Email == "required@test.com"))
+            .RunUnit(env).RunAsync();
+
+        result.Name.Should().Be("Required");
+    }
+
+    [Fact]
+    public async Task Require_FailsWhenNotFound()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var act = async () => await require(env.Context.Set<User>().Where(u => u.Id == -1))
+            .RunUnit(env).RunAsync();
+
+        await act.Should().ThrowAsync<Exception>()
+            .WithMessage("*No matching row found*");
+    }
+
+    [Fact]
+    public async Task Require_FailsWithCustomError()
+    {
+        var env = _fixture.CreatePgEnv();
+        var customError = Error.New("User with ID -1 does not exist");
+
+        var act = async () => await require(env.Context.Set<User>().Where(u => u.Id == -1), customError)
+            .RunUnit(env).RunAsync();
+
+        await act.Should().ThrowAsync<Exception>()
+            .WithMessage("*User with ID -1 does not exist*");
+    }
+
+    [Fact]
     public async Task Any_ChecksExistence()
     {
         var env = _fixture.CreatePgEnv();
