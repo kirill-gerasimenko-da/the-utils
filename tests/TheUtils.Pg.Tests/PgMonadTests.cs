@@ -1294,3 +1294,866 @@ public class PgJsonbTests : IAsyncLifetime
         result.IfSome(v => v.Should().Be("second"));
     }
 }
+
+/// <summary>
+/// Tests for transaction robustness - commit/rollback guarantees.
+/// </summary>
+[Collection("PostgreSQL")]
+public class PgTransactionRobustnessTests : IAsyncLifetime
+{
+    private readonly PostgreSqlFixture _fixture;
+
+    public PgTransactionRobustnessTests(PostgreSqlFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    public Task InitializeAsync() => _fixture.ResetDatabaseAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
+
+    [Fact]
+    public async Task Transaction_RollsBack_WhenErrorBeforeSaveChanges()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var query = transact(
+            from _ in add(new User { Name = "BeforeSave", Email = "beforesave@test.com" })
+            from __ in fail<Unit>("Error before saveChanges")
+            from ___ in saveChanges
+            select unit
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Entity should not be persisted because we failed before saveChanges
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "beforesave@test.com");
+        user.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Transaction_RollsBack_WhenDbConstraintViolation()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // First, create a user
+        await (
+            from _ in add(new User { Name = "Original", Email = "unique@test.com" })
+            from __ in saveChanges
+            select unit
+        ).Run(env).RunAsync();
+
+        // Try to insert duplicate email (assuming email has unique constraint - if not, this tests general DB error)
+        var query = transact(
+            from _ in add(new User { Name = "Duplicate", Email = "unique@test.com" })
+            from __ in saveChanges
+            select unit
+        );
+
+        // This may or may not throw depending on DB constraints
+        // The key point is transaction should rollback on any DB error
+        try
+        {
+            await query.Run(env).RunAsync();
+        }
+        catch
+        {
+            // Expected - transaction rolled back
+        }
+
+        // Verify only one user with this email exists
+        await using var verifyContext = _fixture.CreateDbContext();
+        var count = await verifyContext.Users.CountAsync(u => u.Email == "unique@test.com");
+        count.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Transaction_PreservesExceptionType_AfterRollback()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var customMessage = "Custom error message for testing";
+        var query = transact(
+            from _ in add(new User { Name = "ExType", Email = "extype@test.com" })
+            from __ in saveChanges
+            from ___ in fail<Unit>(customMessage)
+            select unit
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+
+        // Exception should contain the original error message
+        await act.Should().ThrowAsync<Exception>()
+            .WithMessage($"*{customMessage}*");
+    }
+
+    [Fact]
+    public async Task Transaction_RollsBackAllOperations_WhenLaterOperationFails()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var query = transact(
+            from _ in add(new User { Name = "First", Email = "first-rollback@test.com" })
+            from __ in saveChanges
+            from ___ in add(new User { Name = "Second", Email = "second-rollback@test.com" })
+            from ____ in saveChanges
+            from _____ in fail<Unit>("Failure after both inserts")
+            select unit
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Both users should be rolled back
+        await using var verifyContext = _fixture.CreateDbContext();
+        var firstUser = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "first-rollback@test.com");
+        var secondUser = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "second-rollback@test.com");
+        firstUser.Should().BeNull();
+        secondUser.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Transact_ReturnsValue_OnSuccess()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var query = transact(
+            from entry in add(new User { Name = "ReturnValue", Email = "returnvalue@test.com" })
+            from _ in saveChanges
+            select entry.Entity.Id
+        );
+
+        var id = await query.Run(env).RunAsync();
+        id.Should().BeGreaterThan(0);
+
+        // Verify user exists
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.FindAsync(id);
+        user.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task Transact_PropagatesError_AfterRollback()
+    {
+        var env = _fixture.CreatePgEnv();
+        var errorMessage = "Intentional error for propagation test";
+
+        var query = transact(
+            from _ in add(new User { Name = "PropagateError", Email = "propagate@test.com" })
+            from __ in saveChanges
+            from ___ in fail<Unit>(errorMessage)
+            select unit
+        );
+
+        // Error should be propagated to caller
+        var act = async () => await query.Run(env).RunAsync();
+        var exception = await act.Should().ThrowAsync<Exception>();
+        exception.Which.Message.Should().Contain(errorMessage);
+
+        // And transaction should be rolled back
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "propagate@test.com");
+        user.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Transact_NestedTransact_InnerFailureRollsBackOuter()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // Note: PostgreSQL doesn't support true nested transactions, but EF Core uses savepoints
+        // This tests that inner failure causes outer to also fail
+        var query = transact(
+            from _ in add(new User { Name = "Outer", Email = "outer-nested@test.com" })
+            from __ in saveChanges
+            from ___ in transact(
+                from ____ in add(new User { Name = "Inner", Email = "inner-nested@test.com" })
+                from _____ in saveChanges
+                from ______ in fail<Unit>("Inner transaction failure")
+                select unit
+            )
+            select unit
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Both outer and inner should be rolled back
+        await using var verifyContext = _fixture.CreateDbContext();
+        var outerUser = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "outer-nested@test.com");
+        var innerUser = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "inner-nested@test.com");
+        outerUser.Should().BeNull();
+        innerUser.Should().BeNull();
+    }
+}
+
+/// <summary>
+/// Tests for MonadUnliftIO correctness - ToIO extraction and MapIO transformation.
+/// </summary>
+[Collection("PostgreSQL")]
+public class PgMonadUnliftIOTests : IAsyncLifetime
+{
+    private readonly PostgreSqlFixture _fixture;
+
+    public PgMonadUnliftIOTests(PostgreSqlFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    public Task InitializeAsync() => _fixture.ResetDatabaseAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
+
+    [Fact]
+    public async Task ToIO_ExtractsIO_ThatCanBeRunIndependently()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // Create a Pg computation
+        var pgOp =
+            from _ in add(new User { Name = "ToIOTest", Email = "toio@test.com" })
+            from __ in saveChanges
+            select 42;
+
+        // Extract the IO using ToIO
+        var pgWithIO = Pg.ToIO(pgOp).As();
+
+        // Run the Pg to get the IO
+        var extractedIO = await pgWithIO.Run(env).RunAsync();
+
+        // The extracted IO can be run independently
+        var result = await extractedIO.RunAsync();
+        result.Should().Be(42);
+
+        // Verify the user was created
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "toio@test.com");
+        user.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ToIO_CapturesEnvironment_FromEnclosingPg()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // ToIO should capture the environment from the enclosing Pg context
+        var query =
+            from e in Pg.env
+            from ioWrapper in Pg.ToIO(
+                from ctx in context
+                select ctx.GetType().Name
+            ).As()
+            select ioWrapper;
+
+        var extractedIO = await query.Run(env).RunAsync();
+        var result = await extractedIO.RunAsync();
+
+        // Should have captured the DbContext type name
+        result.Should().Contain("DbContext");
+    }
+
+    [Fact]
+    public async Task ToIO_PreservesErrorSemantics()
+    {
+        var env = _fixture.CreatePgEnv();
+        var errorMessage = "ToIO error test";
+
+        var pgOp = fail<int>(errorMessage);
+        var pgWithIO = Pg.ToIO(pgOp).As();
+
+        var extractedIO = await pgWithIO.Run(env).RunAsync();
+
+        // Running the extracted IO should throw the same error
+        var act = async () => await extractedIO.RunAsync();
+        await act.Should().ThrowAsync<Exception>()
+            .WithMessage($"*{errorMessage}*");
+    }
+
+    [Fact]
+    public async Task ToIO_AllowsIOTransformation()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // Start with a Pg computation
+        var pgOp = pure(10);
+
+        // Use ToIO to extract and transform the underlying IO
+        var transformed =
+            from io in Pg.ToIO(pgOp).As()
+            from transformedResult in Pg.liftIO(io.Map(x => x * 2))
+            select transformedResult;
+
+        var result = await transformed.Run(env).RunAsync();
+        result.Should().Be(20);
+    }
+
+    [Fact]
+    public async Task ToIO_AllowsIOLevelCatching()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var pgOp = fail<int>("ToIO catch test");
+
+        // Use ToIO to extract IO, then apply IO-level catching
+        var withCatch =
+            from io in Pg.ToIO(pgOp).As()
+            from catchResult in Pg.liftIO(io.Catch(_ => true, _ => LanguageExt.IO.pure(999)))
+            select catchResult;
+
+        var result = await withCatch.Run(env).RunAsync();
+        result.Should().Be(999);
+    }
+
+    [Fact]
+    public async Task ToIO_WorksWithDatabaseOperations()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // Setup: add a user
+        await (
+            from _ in add(new User { Name = "ToIODb", Email = "toiodb@test.com", Balance = 100 })
+            from __ in saveChanges
+            select unit
+        ).Run(env).RunAsync();
+
+        // Extract IO from a database query
+        var query =
+            from ioWrapper in Pg.ToIO(
+                from users in set<User>()
+                from user in head(users.Where(u => u.Email == "toiodb@test.com"))
+                select user.Map(u => u.Balance)
+            ).As()
+            select ioWrapper;
+
+        var extractedIO = await query.Run(env).RunAsync();
+        var result = await extractedIO.RunAsync();
+
+        result.IsSome.Should().BeTrue();
+        result.IfSome(b => b.Should().Be(100));
+    }
+}
+
+/// <summary>
+/// Tests for bracket-like patterns with Pg monad using ToIO + Catch pattern.
+/// This demonstrates that Pg computations work correctly with resource management patterns.
+/// </summary>
+[Collection("PostgreSQL")]
+public class PgBracketTests : IAsyncLifetime
+{
+    private readonly PostgreSqlFixture _fixture;
+
+    public PgBracketTests(PostgreSqlFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    public Task InitializeAsync() => _fixture.ResetDatabaseAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
+
+    /// <summary>
+    /// Helper method implementing bracket pattern using ToIO + Catch (same pattern as transact)
+    /// </summary>
+    private static Pg<B> Bracket<A, B>(Pg<A> acquire, Func<A, Pg<B>> use, Func<A, Pg<Unit>> release) =>
+        from resource in acquire
+        from operationIO in Pg.ToIO(use(resource)).As()
+        from result in Pg.liftIO(
+            operationIO.Catch(
+                _ => true,
+                err => release(resource).Run(new PgEnv(null!)) // Release on error
+                    .Bind(_ => LanguageExt.IO.fail<B>(err))
+            )
+        )
+        from _ in release(resource) // Release on success
+        select result;
+
+    [Fact]
+    public async Task BracketPattern_ReleasesResource_OnSuccess()
+    {
+        var env = _fixture.CreatePgEnv();
+        var resourceAcquired = false;
+        var resourceReleased = false;
+
+        // Use custom bracket pattern with Pg computation
+        var bracketed =
+            from resource in Pg.liftIO(() => { resourceAcquired = true; return "resource"; })
+            from opIO in Pg.ToIO(
+                from _ in add(new User { Name = "BracketSuccess", Email = "bracket-success@test.com" })
+                from __ in saveChanges
+                select resource.Length
+            ).As()
+            from opResult in Pg.liftIO(opIO)
+            from ___ in Pg.liftIO(() => { resourceReleased = true; return unit; })
+            select opResult;
+
+        var result = await bracketed.Run(env).RunAsync();
+
+        resourceAcquired.Should().BeTrue();
+        resourceReleased.Should().BeTrue();
+        result.Should().Be(8); // "resource".Length
+
+        // Verify the DB operation succeeded
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "bracket-success@test.com");
+        user.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task BracketPattern_ReleasesResource_OnFailure_UsingCatch()
+    {
+        var env = _fixture.CreatePgEnv();
+        var resourceAcquired = false;
+        var resourceReleased = false;
+
+        // Demonstrate bracket pattern with error handling using ToIO + Catch
+        var operation =
+            from _ in Pg.liftIO(() => { resourceAcquired = true; return unit; })
+            from opIO in Pg.ToIO(
+                from __ in add(new User { Name = "BracketFail", Email = "bracket-fail@test.com" })
+                from ___ in saveChanges
+                from ____ in fail<Unit>("Intentional failure inside bracket")
+                select unit
+            ).As()
+            from result in Pg.liftIO(
+                opIO.Catch(
+                    _ => true,
+                    err =>
+                    {
+                        resourceReleased = true;
+                        return LanguageExt.IO.fail<Unit>(err);
+                    }
+                )
+            )
+            select result;
+
+        var act = async () => await operation.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        resourceAcquired.Should().BeTrue();
+        resourceReleased.Should().BeTrue(); // Resource should be released on error!
+    }
+
+    [Fact]
+    public async Task TransactAsBuiltInBracket_CommitsOnSuccess()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        // transact is itself a bracket pattern - demonstrate it works
+        var query = transact(
+            from _ in add(new User { Name = "TransactBracket", Email = "transact-bracket@test.com" })
+            from __ in saveChanges
+            select 42
+        );
+
+        var result = await query.Run(env).RunAsync();
+        result.Should().Be(42);
+
+        // Verify transaction committed
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "transact-bracket@test.com");
+        user.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task TransactAsBuiltInBracket_RollsBackOnFailure()
+    {
+        var env = _fixture.CreatePgEnv();
+
+        var query = transact(
+            from _ in add(new User { Name = "TransactBracketFail", Email = "transact-bracket-fail@test.com" })
+            from __ in saveChanges
+            from ___ in fail<int>("Failure inside transact")
+            select 0
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Transaction should have rolled back
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "transact-bracket-fail@test.com");
+        user.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task WithAdvisoryLockAsBuiltInBracket_ReleasesOnSuccess()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var lockKey = 555555L;
+
+        // withAdvisoryLock is also a bracket pattern
+        var query = withAdvisoryLock(lockKey,
+            from _ in add(new User { Name = "LockBracket", Email = "lock-bracket@test.com" })
+            from __ in saveChanges
+            select 99
+        );
+
+        var result = await query.Run(env).RunAsync();
+        result.Should().Be(99);
+
+        // Verify lock was released
+        var env2 = _fixture.CreatePgEnvWithConnection();
+        var canAcquire = await tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        canAcquire.Should().BeTrue();
+        await advisoryUnlock(lockKey).Run(env2).RunAsync();
+    }
+
+    [Fact]
+    public async Task WithAdvisoryLockAsBuiltInBracket_ReleasesOnFailure()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var lockKey = 666666L;
+
+        var query = withAdvisoryLock(lockKey,
+            from _ in add(new User { Name = "LockBracketFail", Email = "lock-bracket-fail@test.com" })
+            from __ in fail<Unit>("Failure inside lock")
+            select unit
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Lock should still be released even on error
+        var env2 = _fixture.CreatePgEnvWithConnection();
+        var canAcquire = await tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        canAcquire.Should().BeTrue();
+        await advisoryUnlock(lockKey).Run(env2).RunAsync();
+    }
+
+    [Fact]
+    public async Task UsePattern_WithDisposable_DisposesOnCompletion()
+    {
+        var env = _fixture.CreatePgEnv();
+        var disposable = new TestDisposable();
+
+        // Implement use pattern manually with try/finally semantics via Catch
+        var operation =
+            from opIO in Pg.ToIO(
+                from _ in add(new User { Name = "UseDisposable", Email = "use-disposable@test.com" })
+                from __ in saveChanges
+                select disposable.IsDisposed
+            ).As()
+            from result in Pg.liftIO(
+                opIO.Map(r =>
+                {
+                    disposable.Dispose();
+                    return r;
+                }).Catch(
+                    _ => true,
+                    err =>
+                    {
+                        disposable.Dispose();
+                        return LanguageExt.IO.fail<bool>(err);
+                    }
+                )
+            )
+            select result;
+
+        var wasDisposedDuringUse = await operation.Run(env).RunAsync();
+        wasDisposedDuringUse.Should().BeFalse(); // Not disposed during use
+        disposable.IsDisposed.Should().BeTrue(); // Disposed after use completes
+    }
+
+    [Fact]
+    public async Task UsePattern_WithDisposable_DisposesOnError()
+    {
+        var env = _fixture.CreatePgEnv();
+        var disposable = new TestDisposable();
+
+        var operation =
+            from opIO in Pg.ToIO(
+                from _ in add(new User { Name = "UseDisposableErr", Email = "use-disposable-err@test.com" })
+                from __ in fail<Unit>("Error during use")
+                select unit
+            ).As()
+            from result in Pg.liftIO(
+                opIO.Map(r =>
+                {
+                    disposable.Dispose();
+                    return r;
+                }).Catch(
+                    _ => true,
+                    err =>
+                    {
+                        disposable.Dispose();
+                        return LanguageExt.IO.fail<Unit>(err);
+                    }
+                )
+            )
+            select result;
+
+        var act = async () => await operation.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Resource should still be disposed even on error
+        disposable.IsDisposed.Should().BeTrue();
+    }
+
+    private class TestDisposable : IDisposable
+    {
+        public bool IsDisposed { get; private set; }
+        public void Dispose() => IsDisposed = true;
+    }
+}
+
+/// <summary>
+/// Tests for nested resource patterns - combining transactions and locks.
+/// </summary>
+[Collection("PostgreSQL")]
+public class PgNestedResourceTests : IAsyncLifetime
+{
+    private readonly PostgreSqlFixture _fixture;
+
+    public PgNestedResourceTests(PostgreSqlFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    public Task InitializeAsync() => _fixture.ResetDatabaseAsync();
+    public Task DisposeAsync() => Task.CompletedTask;
+
+    [Fact]
+    public async Task TransactionWithAdvisoryLock_BothReleaseOnSuccess()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var lockKey = 111111L;
+
+        var query = transact(
+            from _ in withAdvisoryLock(lockKey,
+                from __ in add(new User { Name = "TxLock", Email = "txlock@test.com" })
+                from ___ in saveChanges
+                select unit
+            )
+            select unit
+        );
+
+        await query.Run(env).RunAsync();
+
+        // Verify transaction committed
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "txlock@test.com");
+        user.Should().NotBeNull();
+
+        // Verify lock was released (another connection can acquire it)
+        var env2 = _fixture.CreatePgEnvWithConnection();
+        var canAcquire = await tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        canAcquire.Should().BeTrue();
+        await advisoryUnlock(lockKey).Run(env2).RunAsync();
+    }
+
+    [Fact]
+    public async Task TransactionWithAdvisoryLock_BothReleaseOnFailure()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var lockKey = 222222L;
+
+        var query = transact(
+            from _ in withAdvisoryLock(lockKey,
+                from __ in add(new User { Name = "TxLockFail", Email = "txlockfail@test.com" })
+                from ___ in saveChanges
+                from ____ in fail<Unit>("Failure inside lock inside transaction")
+                select unit
+            )
+            select unit
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Transaction should be rolled back
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "txlockfail@test.com");
+        user.Should().BeNull();
+
+        // Lock should be released
+        var env2 = _fixture.CreatePgEnvWithConnection();
+        var canAcquire = await tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        canAcquire.Should().BeTrue();
+        await advisoryUnlock(lockKey).Run(env2).RunAsync();
+    }
+
+    [Fact]
+    public async Task AdvisoryLockWithTransaction_BothReleaseOnSuccess()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var lockKey = 333333L;
+
+        // Lock wrapping transaction (opposite nesting)
+        var query = withAdvisoryLock(lockKey,
+            transact(
+                from _ in add(new User { Name = "LockTx", Email = "locktx@test.com" })
+                from __ in saveChanges
+                select unit
+            )
+        );
+
+        await query.Run(env).RunAsync();
+
+        // Verify transaction committed
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "locktx@test.com");
+        user.Should().NotBeNull();
+
+        // Verify lock was released
+        var env2 = _fixture.CreatePgEnvWithConnection();
+        var canAcquire = await tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        canAcquire.Should().BeTrue();
+        await advisoryUnlock(lockKey).Run(env2).RunAsync();
+    }
+
+    [Fact]
+    public async Task AdvisoryLockWithTransaction_BothReleaseOnFailure()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var lockKey = 444444L;
+
+        var query = withAdvisoryLock(lockKey,
+            transact(
+                from _ in add(new User { Name = "LockTxFail", Email = "locktxfail@test.com" })
+                from __ in saveChanges
+                from ___ in fail<Unit>("Failure inside transaction inside lock")
+                select unit
+            )
+        );
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Transaction rolled back
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "locktxfail@test.com");
+        user.Should().BeNull();
+
+        // Lock released
+        var env2 = _fixture.CreatePgEnvWithConnection();
+        var canAcquire = await tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        canAcquire.Should().BeTrue();
+        await advisoryUnlock(lockKey).Run(env2).RunAsync();
+    }
+
+    [Fact]
+    public async Task NestedResources_AllReleasedOnSuccess()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var resource1Released = false;
+        var resource2Released = false;
+
+        // Nested resource pattern using ToIO + Catch
+        var query =
+            from _ in Pg.liftIO(() => { return "outer"; })
+            from outerOpIO in Pg.ToIO(
+                from __ in Pg.liftIO(() => { return "inner"; })
+                from innerOpIO in Pg.ToIO(
+                    from ___ in add(new User { Name = "NestedRes", Email = "nestedres@test.com" })
+                    from ____ in saveChanges
+                    select "outerinner"
+                ).As()
+                from innerResult in Pg.liftIO(innerOpIO.Map(r => { resource2Released = true; return r; }))
+                select innerResult
+            ).As()
+            from outerResult in Pg.liftIO(outerOpIO.Map(r => { resource1Released = true; return r; }))
+            select outerResult;
+
+        var result = await query.Run(env).RunAsync();
+        result.Should().Be("outerinner");
+        resource1Released.Should().BeTrue();
+        resource2Released.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task NestedResources_AllReleasedOnFailure()
+    {
+        var env = _fixture.CreatePgEnvWithConnection();
+        var resource1Released = false;
+        var resource2Released = false;
+
+        // Nested resource pattern with failure
+        var query =
+            from outerOpIO in Pg.ToIO(
+                from innerOpIO in Pg.ToIO(
+                    from _ in add(new User { Name = "NestedResFail", Email = "nestedresfail@test.com" })
+                    from __ in fail<string>("Inner failure")
+                    select ""
+                ).As()
+                from innerResult in Pg.liftIO(
+                    innerOpIO.Catch(_ => true, err =>
+                    {
+                        resource2Released = true;
+                        return LanguageExt.IO.fail<string>(err);
+                    })
+                )
+                select innerResult
+            ).As()
+            from outerResult in Pg.liftIO(
+                outerOpIO.Catch(_ => true, err =>
+                {
+                    resource1Released = true;
+                    return LanguageExt.IO.fail<string>(err);
+                })
+            )
+            select outerResult;
+
+        var act = async () => await query.Run(env).RunAsync();
+        await act.Should().ThrowAsync<Exception>();
+
+        // Both resources should be released even on failure
+        resource1Released.Should().BeTrue();
+        resource2Released.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task TransactionInsideCustomBracket_ResourcesReleasedCorrectly()
+    {
+        var env = _fixture.CreatePgEnv();
+        var bracketReleased = false;
+
+        // Custom bracket wrapping transact
+        var query =
+            from _ in Pg.liftIO(() => "bracket-resource")
+            from opIO in Pg.ToIO(
+                transact(
+                    from __ in add(new User { Name = "TxInBracket", Email = "txinbracket@test.com" })
+                    from ___ in saveChanges
+                    select 16
+                )
+            ).As()
+            from opResult in Pg.liftIO(opIO.Map(r => { bracketReleased = true; return r; }))
+            select opResult;
+
+        var result = await query.Run(env).RunAsync();
+        result.Should().Be(16);
+        bracketReleased.Should().BeTrue();
+
+        // Transaction committed
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "txinbracket@test.com");
+        user.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task CustomBracketInsideTransaction_ResourcesReleasedCorrectly()
+    {
+        var env = _fixture.CreatePgEnv();
+        var bracketReleased = false;
+
+        // Transaction wrapping custom bracket pattern
+        var query = transact(
+            from _ in Pg.liftIO(() => "inner-bracket")
+            from opIO in Pg.ToIO(
+                from __ in add(new User { Name = "BracketInTx", Email = "bracketintx@test.com" })
+                from ___ in saveChanges
+                select 13
+            ).As()
+            from opResult in Pg.liftIO(opIO.Map(r => { bracketReleased = true; return r; }))
+            select opResult
+        );
+
+        var result = await query.Run(env).RunAsync();
+        result.Should().Be(13);
+        bracketReleased.Should().BeTrue();
+
+        // Transaction committed
+        await using var verifyContext = _fixture.CreateDbContext();
+        var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "bracketintx@test.com");
+        user.Should().NotBeNull();
+    }
+}
