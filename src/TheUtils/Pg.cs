@@ -6,7 +6,7 @@ using LanguageExt.Traits;
 using static LanguageExt.Prelude;
 
 /// <summary>
-/// The PostgreSQL monad - a first-class monad wrapping StateT&lt;PgState, ReaderT&lt;PgEnv, IO&gt;, A&gt;.
+/// The PostgreSQL monad - wraps StateT&lt;PgState, ReaderT&lt;PgEnv, IO&gt;, A&gt;.
 /// Provides stateful, effectful PostgreSQL database operations with automatic transaction tracking.
 /// </summary>
 public readonly record struct Pg<A>(
@@ -37,84 +37,69 @@ public readonly record struct Pg<A>(
     public IO<PgState> RunState(PgEnv env) =>
         Run(env).Map(t => t.State);
 
-    /// <summary>
-    /// Map over the result value.
-    /// </summary>
-    public Pg<B> Map<B>(Func<A, B> f) =>
-        new(runPg.Map(f));
-
-    /// <summary>
-    /// Bind/FlatMap to chain computations.
-    /// </summary>
-    public Pg<B> Bind<B>(Func<A, Pg<B>> f) =>
-        new(runPg.Bind(a => f(a).runPg));
-
-    /// <summary>
-    /// Select (LINQ query syntax support).
-    /// </summary>
+    // LINQ query syntax support
+    public Pg<B> Map<B>(Func<A, B> f) => new(runPg.Map(f));
+    public Pg<B> Bind<B>(Func<A, Pg<B>> f) => new(runPg.Bind(a => f(a).runPg));
     public Pg<B> Select<B>(Func<A, B> f) => Map(f);
-
-    /// <summary>
-    /// SelectMany (LINQ query syntax support).
-    /// </summary>
     public Pg<C> SelectMany<B, C>(Func<A, Pg<B>> bind, Func<A, B, C> project) =>
         Bind(a => bind(a).Map(b => project(a, b)));
 }
 
 /// <summary>
-/// The Pg monad witness type and trait implementations.
-/// Implements Monad, MonadIO, Fallible, Stateful, and Readable traits.
+/// Pg witness type with trait implementations.
+/// Uses Deriving for Monad and Stateful; manual for MonadIO, Fallible, Readable.
 /// </summary>
-public class Pg :
-    Monad<Pg>,
-    MonadIO<Pg>,
-    Fallible<Pg>,
-    Stateful<Pg, PgState>,
-    Readable<Pg, PgEnv>
+public partial class Pg :
+    Deriving.Monad<Pg, StateT<PgState, ReaderT<PgEnv, IO>>>,
+    Deriving.Stateful<Pg, StateT<PgState, ReaderT<PgEnv, IO>>, PgState>
 {
-    // Type alias for the inner transformer stack
-    private static StateT<PgState, ReaderT<PgEnv, IO>, A> Inner<A>(Pg<A> ma) => ma.runPg;
-    private static Pg<A> Outer<A>(StateT<PgState, ReaderT<PgEnv, IO>, A> ma) => new(ma);
-    private static Pg<A> Outer<A>(K<StateT<PgState, ReaderT<PgEnv, IO>>, A> ma) => new(ma.As());
+    // ========== Deriving Morphisms (Required) ==========
 
-    // ==================== Functor ====================
+    /// <summary>
+    /// Transform Pg to the underlying StateT transformer.
+    /// </summary>
+    public static K<StateT<PgState, ReaderT<PgEnv, IO>>, A> Transform<A>(K<Pg, A> fa) =>
+        fa.As().runPg;
 
-    public static K<Pg, B> Map<A, B>(Func<A, B> f, K<Pg, A> ma) =>
-        Outer(Inner(ma.As()).Map(f));
+    /// <summary>
+    /// CoTransform from StateT back to Pg.
+    /// </summary>
+    public static K<Pg, A> CoTransform<A>(K<StateT<PgState, ReaderT<PgEnv, IO>>, A> fa) =>
+        new Pg<A>(fa.As());
 
-    // ==================== Applicative ====================
+    // ========== Convenience ==========
 
-    public static K<Pg, A> Pure<A>(A value) =>
-        Outer(Applicative.pure<StateT<PgState, ReaderT<PgEnv, IO>>, A>(value));
+    /// <summary>
+    /// Convert K&lt;Pg, A&gt; to Pg&lt;A&gt;.
+    /// </summary>
+    public static Pg<A> As<A>(K<Pg, A> ma) => (Pg<A>)ma;
+}
 
-    public static K<Pg, B> Apply<A, B>(K<Pg, Func<A, B>> mf, K<Pg, A> ma) =>
-        Outer(Applicative.apply(Inner(mf.As()), Inner(ma.As())));
+/// <summary>
+/// Manual trait implementations that cannot be derived.
+/// MonadIO, Fallible, and Readable require explicit implementation.
+/// </summary>
+public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
+{
+    // ========== MonadIO ==========
 
-    public static K<Pg, B> Apply<A, B>(K<Pg, Func<A, B>> mf, Memo<Pg, A> ma) =>
-        mf.Bind(f => ma.Value.Map(f));
-
-    // ==================== Monad ====================
-
-    public static K<Pg, B> Bind<A, B>(K<Pg, A> ma, Func<A, K<Pg, B>> f) =>
-        Outer(Inner(ma.As()).Bind(a => Inner(f(a).As())));
-
-    public static K<Pg, A> Flatten<A>(K<Pg, K<Pg, A>> mma) =>
-        mma.Bind(identity);
-
-    public static K<Pg, B> Recur<A, B>(A value, Func<A, K<Pg, Next<A, B>>> f) =>
-        Outer(Monad.recur<StateT<PgState, ReaderT<PgEnv, IO>>, A, B>(value, a =>
-            Inner(f(a).As())));
-
-    // ==================== MonadIO ====================
-
+    /// <summary>
+    /// Lift an IO computation into Pg.
+    /// </summary>
     public static K<Pg, A> LiftIO<A>(IO<A> io) =>
-        Outer(MonadIO.liftIO<StateT<PgState, ReaderT<PgEnv, IO>>, A>(io));
+        CoTransform(MonadIO.liftIO<StateT<PgState, ReaderT<PgEnv, IO>>, A>(io));
 
-    // ==================== Fallible ====================
+    // ========== Fallible ==========
 
+    /// <summary>
+    /// Fail with an error.
+    /// </summary>
     public static K<Pg, A> Fail<A>(Error error) =>
         LiftIO(IO.fail<A>(error));
 
+    /// <summary>
+    /// Catch errors matching the predicate and handle them.
+    /// </summary>
     public static K<Pg, A> Catch<A>(
         K<Pg, A> ma,
         Func<Error, bool> predicate,
@@ -127,33 +112,24 @@ public class Pg :
                         handler(err).As().Run(env, state)))));
     }
 
-    // ==================== Stateful ====================
+    // ========== Readable ==========
 
-    public static K<Pg, A> Gets<A>(Func<PgState, A> f) =>
-        Outer(Stateful.gets<StateT<PgState, ReaderT<PgEnv, IO>>, PgState, A>(f));
-
-    public static K<Pg, Unit> Put(PgState state) =>
-        Outer(Stateful.put<StateT<PgState, ReaderT<PgEnv, IO>>, PgState>(state));
-
-    public static K<Pg, Unit> Modify(Func<PgState, PgState> f) =>
-        Outer(Stateful.modify<StateT<PgState, ReaderT<PgEnv, IO>>, PgState>(f));
-
-    // ==================== Readable ====================
-
+    /// <summary>
+    /// Access the environment via a projection function.
+    /// </summary>
     public static K<Pg, A> Asks<A>(Func<PgEnv, A> f) =>
-        Outer(new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
+        new Pg<A>(new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
             Readable.asks<ReaderT<PgEnv, IO>, PgEnv, (A, PgState)>(env => (f(env), state))));
 
+    /// <summary>
+    /// Run a computation with a locally modified environment.
+    /// </summary>
     public static K<Pg, A> Local<A>(Func<PgEnv, PgEnv> f, K<Pg, A> ma)
     {
         return new Pg<A>(
             new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
                 Readable.local(f, ma.As().runPg.Run(state))));
     }
-
-    // ==================== Conversion ====================
-
-    public static Pg<A> As<A>(K<Pg, A> ma) => (Pg<A>)ma;
 }
 
 /// <summary>
@@ -169,6 +145,5 @@ public static class PgExtensions
     /// <summary>
     /// Ignore the result, returning Unit.
     /// </summary>
-    public static Pg<Unit> Ignore<A>(this Pg<A> ma) =>
-        ma.Map(_ => unit);
+    public static Pg<Unit> Ignore<A>(this Pg<A> ma) => ma.Map(_ => unit);
 }

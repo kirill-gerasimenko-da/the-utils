@@ -43,17 +43,17 @@ public static class PgOps
     /// <summary>
     /// Access the current state.
     /// </summary>
-    public static Pg<PgState> state => Pg.Gets<PgState>(identity).As();
+    public static Pg<PgState> state => Stateful.get<Pg, PgState>().As();
 
     /// <summary>
     /// Replace the current state.
     /// </summary>
-    public static Pg<Unit> setState(PgState s) => Pg.Put(s).As();
+    public static Pg<Unit> setState(PgState s) => Stateful.put<Pg, PgState>(s).As();
 
     /// <summary>
     /// Modify the current state.
     /// </summary>
-    public static Pg<Unit> modifyState(Func<PgState, PgState> f) => Pg.Modify(f).As();
+    public static Pg<Unit> modifyState(Func<PgState, PgState> f) => Stateful.modify<Pg, PgState>(f).As();
 
     // ==================== IO Lifting ====================
 
@@ -79,7 +79,7 @@ public static class PgOps
     /// <summary>
     /// Lift a pure value into Pg.
     /// </summary>
-    public static Pg<A> pure<A>(A value) => Pg.Pure(value).As();
+    public static Pg<A> pure<A>(A value) => Applicative.pure<Pg, A>(value).As();
 
     /// <summary>
     /// Fail with an error.
