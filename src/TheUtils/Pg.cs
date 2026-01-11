@@ -99,6 +99,7 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
 
     /// <summary>
     /// Catch errors matching the predicate and handle them.
+    /// If the predicate doesn't match, the error is re-thrown.
     /// </summary>
     public static K<Pg, A> Catch<A>(
         K<Pg, A> ma,
@@ -108,8 +109,10 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
         return new Pg<A>(
             new StateT<PgState, ReaderT<PgEnv, IO>, A>(state =>
                 new ReaderT<PgEnv, IO, (A, PgState)>(env =>
-                    ma.As().Run(env, state).Catch(predicate, err =>
-                        handler(err).As().Run(env, state)))));
+                    ma.As().Run(env, state).Catch(err =>
+                        predicate(err)
+                            ? handler(err).As().Run(env, state)
+                            : IO.fail<(A, PgState)>(err)))));
     }
 
     // ========== Readable ==========
