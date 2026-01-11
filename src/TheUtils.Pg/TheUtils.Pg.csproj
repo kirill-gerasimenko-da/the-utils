@@ -2,39 +2,36 @@
 
     <PropertyGroup>
         <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>disable</Nullable>
+        <Nullable>enable</Nullable>
         <LangVersion>12</LangVersion>
-        <AssemblyName>TheUtils</AssemblyName>
         <RootNamespace>TheUtils</RootNamespace>
+        <TargetFramework>net10.0</TargetFramework>
 
-        <PackageVersion>1.0.145-beta</PackageVersion>
-        <Title>Utilities set</Title>
+        <!-- NuGet Package Metadata -->
+        <PackageVersion>1.0.0-beta</PackageVersion>
+        <Title>PostgreSQL Monad for language-ext</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Description>Just a collection of useful opiniated extension methods</Description>
+        <Description>PostgreSQL monad for functional database operations using language-ext v5. Provides Pg&lt;A&gt; monad with StateT+ReaderT+IO stack, EF Core integration, and Npgsql-specific features (COPY, LISTEN/NOTIFY, advisory locks).</Description>
         <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
         <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
         <Authors>Kirill Gerasimenko</Authors>
-        <PackageTags>language-ext utils</PackageTags>
-        <PackageId>TheUtils</PackageId>
-        <Product>TheUtils</Product>
-        <TargetFramework>net10.0</TargetFramework>
+        <PackageTags>postgresql;monad;functional;language-ext;ef-core;npgsql</PackageTags>
+        <PackageId>TheUtils.Pg</PackageId>
+        <Product>TheUtils.Pg</Product>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
-
     </PropertyGroup>
 
     <ItemGroup>
         <None Include="../../LICENSE" Pack="true" PackagePath="" />
     </ItemGroup>
+
     <ItemGroup>
-        <PackageReference Include="CliWrap" Version="3.9.0" />
-        <PackageReference Include="FluentValidation" Version="12.0.0" />
         <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.0-preview.2.25163.2" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0-preview.2.25163.2" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-        <PackageReference Include="System.Linq.Async" Version="6.0.3" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-preview.2.25163.8" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0-preview.2.25163.8" />
+        <PackageReference Include="Npgsql" Version="9.0.3" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0-preview.1" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
 </Project>

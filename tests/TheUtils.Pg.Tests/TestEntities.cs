@@ -1,4 +1,4 @@
-namespace TheUtils.Tests;
+namespace TheUtils.PgTests;
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;

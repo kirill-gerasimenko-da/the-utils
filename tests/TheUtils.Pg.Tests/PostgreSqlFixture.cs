@@ -1,4 +1,4 @@
-namespace TheUtils.Tests;
+namespace TheUtils.PgTests;
 
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
