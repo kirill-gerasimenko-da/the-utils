@@ -143,7 +143,7 @@ public static class Val
         where A : Validated<A>
     {
         var r = tryValidate(a);
-        return r.IsValid ? new Fin.Fail<A>(r.ToError(error())) : new Fin.Succ<A>(a);
+        return r.IsValid ? a : r.ToError(error());
     }
 
     public static Fin<A> validateFin<A>(A a, Func<string> error)
