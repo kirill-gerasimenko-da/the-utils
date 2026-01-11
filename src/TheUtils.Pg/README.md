@@ -50,6 +50,13 @@ var result = await getUser(42).Run(env).RunAsync();
 ReaderT<PgEnv, IO, A>
 ```
 
+Implements these traits:
+- `Monad<Pg>` - composition via LINQ
+- `MonadIO<Pg>` - lift IO operations
+- `MonadUnliftIO<Pg>` - extract IO for advanced patterns (fork, bracket)
+- `Fallible<Pg>` - error handling with `Fail` and `Catch`
+- `Readable<Pg, PgEnv>` - environment access
+
 ### PgEnv (Environment)
 
 Read-only configuration passed to all operations:

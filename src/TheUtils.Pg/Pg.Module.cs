@@ -356,18 +356,30 @@ public partial class Pg
     /// <summary>
     /// Execute an operation within a transaction with automatic commit/rollback.
     /// Commits on success, rolls back on any error.
+    /// Uses standard MonadUnliftIO.MapIO + IO.Catch pattern.
     /// </summary>
     public static Pg<A> transact<A>(Pg<A> operation, Option<IsolationLevel> level = default) =>
-        from _ in beginTransaction(level)
-        from r in Pg.Catch(
-            from result in operation
-            from __ in commit
-            select result,
-            _ => true,
-            e => from __ in rollback
-                 from ___ in fail<A>(e)
-                 select default(A)!).As()
-        select r;
+        from tx in beginTransaction(level)
+        from operationIO in Pg.ToIO(
+            from r in operation
+            from _ in liftIO<Unit>(IO.liftAsync<Unit>(async envIO =>
+            {
+                await tx.CommitAsync(envIO.Token);
+                return unit;
+            }))
+            select r
+        ).As()
+        from result in liftIO(
+            operationIO.Catch(
+                _ => true,
+                err => IO.liftAsync<Unit>(async envIO =>
+                {
+                    await tx.RollbackAsync(envIO.Token);
+                    return unit;
+                }).Bind(_ => IO.fail<A>(err))
+            )
+        )
+        select result;
 
     // ==================== Npgsql-Specific: COPY Protocol ====================
 
@@ -527,15 +539,33 @@ public partial class Pg
     /// <summary>
     /// Execute an operation while holding an advisory lock.
     /// Releases lock on completion or error.
+    /// Uses standard MonadUnliftIO.ToIO + IO.Catch pattern.
     /// </summary>
     public static Pg<A> withAdvisoryLock<A>(long key, Pg<A> operation) =>
+        from e in env
         from _ in advisoryLock(key)
-        from r in Pg.Catch(operation, _ => true, e =>
-            from __ in advisoryUnlock(key)
-            from ___ in fail<A>(e)
-            select default(A)!).As()
-        from ___ in advisoryUnlock(key)
-        select r;
+        from operationIO in Pg.ToIO(operation).As()
+        from result in liftIO(
+            operationIO.Catch(
+                _ => true,
+                err => advisoryUnlockIO(key, e.Connection)
+                         .Bind(_ => IO.fail<A>(err))
+            )
+        )
+        from __ in liftIO(advisoryUnlockIO(key, e.Connection))
+        select result;
+
+    /// <summary>
+    /// Release an advisory lock using a captured connection (pure IO).
+    /// </summary>
+    static IO<Unit> advisoryUnlockIO(long key, NpgsqlConnection conn) =>
+        IO.liftAsync<Unit>(async envIO =>
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT pg_advisory_unlock({key})";
+            await cmd.ExecuteScalarAsync(envIO.Token);
+            return unit;
+        });
 
     // ==================== Npgsql-Specific: Raw Queries ====================
 

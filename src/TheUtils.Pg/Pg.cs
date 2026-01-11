@@ -28,7 +28,7 @@ public readonly record struct Pg<A>(
 
 /// <summary>
 /// Pg witness type with trait implementations.
-/// Uses Deriving for Monad; manual for MonadIO, Fallible, Readable.
+/// Uses Deriving for Monad; manual for MonadIO, MonadUnliftIO, Fallible, Readable.
 /// </summary>
 public partial class Pg :
     Deriving.Monad<Pg, ReaderT<PgEnv, IO>>
@@ -57,9 +57,9 @@ public partial class Pg :
 
 /// <summary>
 /// Manual trait implementations that cannot be derived.
-/// MonadIO, Fallible, and Readable require explicit implementation.
+/// MonadIO, MonadUnliftIO, Fallible, and Readable require explicit implementation.
 /// </summary>
-public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
+public partial class Pg : MonadIO<Pg>, MonadUnliftIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
 {
     // ========== MonadIO ==========
 
@@ -68,6 +68,15 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
     /// </summary>
     public static K<Pg, A> LiftIO<A>(IO<A> io) =>
         CoTransform(MonadIO.liftIO<ReaderT<PgEnv, IO>, A>(io));
+
+    // ========== MonadUnliftIO ==========
+
+    /// <summary>
+    /// Extract the IO from within a Pg computation.
+    /// Returns a Pg that, when run, produces the IO that the original computation would produce.
+    /// </summary>
+    public static K<Pg, IO<A>> ToIO<A>(K<Pg, A> ma) =>
+        Asks<IO<A>>(env => ma.As().Run(env));
 
     // ========== Fallible ==========
 
