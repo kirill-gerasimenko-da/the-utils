@@ -160,7 +160,7 @@ Pg<Unit> addUsers(Seq<User> users) =>
 ### Transactions
 
 ```csharp
-// Automatic transaction with rollback on error
+// Automatic transaction with bracket pattern (guarantees rollback on error/cancellation)
 Pg<Unit> transferFunds(int fromId, int toId, decimal amount) =>
     transact(
         from sender in single(set<Account>().Bind(a =>
@@ -175,7 +175,7 @@ Pg<Unit> transferFunds(int fromId, int toId, decimal amount) =>
 
 // Manual transaction control
 Pg<Unit> manualTransaction() =>
-    from _ in beginTransaction(IsolationLevel.Serializable)
+    from _ in beginTransaction(Some(IsolationLevel.Serializable))
     from __ in execute($"UPDATE accounts SET balance = balance + 100")
     from ___ in commit
     select unit;
@@ -227,7 +227,7 @@ Pg<Unit> notifyChange(string payload) =>
 #### Advisory Locks (Distributed Locking)
 
 ```csharp
-// Scoped lock - automatically released
+// Scoped lock with bracket pattern - guarantees release on completion/error/cancellation
 Pg<Unit> processWithLock(long resourceId) =>
     withAdvisoryLock(resourceId,
         from data in loadData(resourceId)
@@ -313,10 +313,10 @@ Pg<int> safeOperation() =>
 ### Transaction Operations
 | Method | Description |
 |--------|-------------|
-| `beginTransaction(IsolationLevel?)` | Start transaction |
+| `beginTransaction(Option<IsolationLevel>)` | Start transaction |
 | `commit` | Commit transaction |
 | `rollback` | Rollback transaction |
-| `transact<A>(Pg<A>)` | Auto commit/rollback wrapper |
+| `transact<A>(Pg<A>)` | Bracket-based auto commit/rollback |
 
 ### Npgsql Operations
 | Method | Description |
@@ -325,7 +325,12 @@ Pg<int> safeOperation() =>
 | `listen(channel)` | Subscribe to notifications |
 | `notify(channel, payload)` | Send notification |
 | `advisoryLock(key)` | Acquire advisory lock |
-| `withAdvisoryLock<A>(key, Pg<A>)` | Scoped advisory lock |
+| `withAdvisoryLock<A>(key, Pg<A>)` | Bracket-based scoped lock |
+
+### Resource Safety
+| Method | Description |
+|--------|-------------|
+| `Pg.Bracket<A,B>(acquire, fin, use)` | Bracket pattern with guaranteed finalization |
 
 ## License
 

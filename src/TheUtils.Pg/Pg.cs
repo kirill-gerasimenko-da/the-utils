@@ -136,6 +136,41 @@ public partial class Pg : MonadIO<Pg>, Fallible<Pg>, Readable<Pg, PgEnv>
 }
 
 /// <summary>
+/// Bracket pattern implementation for resource safety.
+/// </summary>
+public partial class Pg
+{
+    /// <summary>
+    /// Bracket pattern - acquire resource, use it, finalize.
+    /// Finalize runs regardless of success/failure/cancellation via try/finally.
+    /// Note: State changes during finalization are discarded.
+    /// </summary>
+    public static Pg<B> Bracket<A, B>(
+        K<Pg, A> acquire,
+        Func<A, K<Pg, Unit>> fin,
+        Func<A, K<Pg, B>> use) =>
+        new Pg<B>(new StateT<PgState, ReaderT<PgEnv, IO>, B>(state =>
+            new ReaderT<PgEnv, IO, (B, PgState)>(env =>
+                IO.liftAsync(async envIO =>
+                {
+                    var (resource, stateAfterAcquire) = await acquire.As().Run(env, state).RunAsync(envIO);
+                    try
+                    {
+                        return await use(resource).As().Run(env, stateAfterAcquire).RunAsync(envIO);
+                    }
+                    finally
+                    {
+                        // Finalize always runs - swallow errors to not mask original error
+                        try
+                        {
+                            await fin(resource).As().Run(env, stateAfterAcquire).RunAsync(envIO);
+                        }
+                        catch { /* intentionally swallow finalization errors */ }
+                    }
+                }))));
+}
+
+/// <summary>
 /// Extension methods for Pg monad.
 /// </summary>
 public static class PgExtensions

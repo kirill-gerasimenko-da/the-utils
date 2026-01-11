@@ -341,11 +341,11 @@ public partial class Pg
     /// <summary>
     /// Begin a new transaction with optional isolation level.
     /// </summary>
-    public static Pg<Unit> beginTransaction(IsolationLevel? level = null) =>
+    public static Pg<Unit> beginTransaction(Option<IsolationLevel> level = default) =>
         from e in env
         from s in state
         from t in liftIO<IDbContextTransaction>(io => e.Context.Database.BeginTransactionAsync(
-            level ?? e.DefaultIsolation, io.Token))
+            level.IfNone(e.DefaultIsolation), io.Token))
         from _ in setState(s with { Transaction = Some(t) })
         select unit;
 
@@ -381,15 +381,16 @@ public partial class Pg
 
     /// <summary>
     /// Execute an operation within a transaction with automatic commit/rollback.
+    /// Uses bracket pattern: commit on success, rollback on any error/cancellation.
     /// </summary>
-    public static Pg<A> transact<A>(Pg<A> operation, IsolationLevel? level = null) =>
-        from _ in beginTransaction(level)
-        from r in Pg.Catch(operation, _ => true, e =>
-            from __ in rollback
-            from ___ in fail<A>(e)
-            select default(A)!).As()
-        from __ in commit
-        select r;
+    public static Pg<A> transact<A>(Pg<A> operation, Option<IsolationLevel> level = default) =>
+        Pg.Bracket(
+            beginTransaction(level),
+            _ => rollback,
+            _ => from r in operation
+                 from __ in commit
+                 select r
+        );
 
     // ==================== Npgsql-Specific: COPY Protocol ====================
 
@@ -549,15 +550,14 @@ public partial class Pg
 
     /// <summary>
     /// Execute an operation while holding an advisory lock.
+    /// Uses bracket pattern: always releases lock on completion.
     /// </summary>
     public static Pg<A> withAdvisoryLock<A>(long key, Pg<A> operation) =>
-        from _ in advisoryLock(key)
-        from r in Pg.Catch(operation, _ => true, e =>
-            from __ in advisoryUnlock(key)
-            from ___ in fail<A>(e)
-            select default(A)!).As()
-        from ___ in advisoryUnlock(key)
-        select r;
+        Pg.Bracket(
+            advisoryLock(key),
+            _ => advisoryUnlock(key),
+            _ => operation
+        );
 
     // ==================== Npgsql-Specific: Raw Queries ====================
 
@@ -614,19 +614,18 @@ public partial class Pg
         string table,
         string jsonColumn,
         string jsonPath,
-        object vars = null!) =>
+        Option<object> vars = default) =>
         from e in env
         from result in liftIO<Option<A>>(async io =>
         {
             if (e.Connection.State != ConnectionState.Open)
                 await e.Connection.OpenAsync(io.Token);
             await using var cmd = e.Connection.CreateCommand();
-            cmd.CommandText = vars == null
+            cmd.CommandText = vars.IsNone
                 ? $"SELECT jsonb_path_query_first({jsonColumn}, $1) FROM {table}"
                 : $"SELECT jsonb_path_query_first({jsonColumn}, $1, $2) FROM {table}";
             cmd.Parameters.AddWithValue(jsonPath);
-            if (vars != null)
-                cmd.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Jsonb, vars);
+            vars.IfSome(v => cmd.Parameters.AddWithValue(NpgsqlTypes.NpgsqlDbType.Jsonb, v));
             var scalar = await cmd.ExecuteScalarAsync(io.Token);
             return scalar == null || scalar == DBNull.Value
                 ? Option<A>.None
