@@ -7,14 +7,15 @@ using Npgsql;
 /// <summary>
 /// Extension methods for Npgsql notifications.
 /// </summary>
-public static class NpgsqlNotificationExtensions
+public static class PostgresDbExtensions
 {
     /// <summary>
     /// Convert Npgsql notifications to an async enumerable stream.
     /// </summary>
     public static async IAsyncEnumerable<NpgsqlNotificationEventArgs> ToNotificationStream(
         this NpgsqlConnection conn,
-        [EnumeratorCancellation] CancellationToken ct = default)
+        [EnumeratorCancellation] CancellationToken ct = default
+    )
     {
         var channel = Channel.CreateUnbounded<NpgsqlNotificationEventArgs>();
 
@@ -26,13 +27,16 @@ public static class NpgsqlNotificationExtensions
         try
         {
             // Keep connection alive to receive notifications
-            var waitTask = Task.Run(async () =>
-            {
-                while (!ct.IsCancellationRequested)
+            var waitTask = Task.Run(
+                async () =>
                 {
-                    await conn.WaitAsync(ct);
-                }
-            }, ct);
+                    while (!ct.IsCancellationRequested)
+                    {
+                        await conn.WaitAsync(ct);
+                    }
+                },
+                ct
+            );
 
             await foreach (var notification in channel.Reader.ReadAllAsync(ct))
                 yield return notification;
