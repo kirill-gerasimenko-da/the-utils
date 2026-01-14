@@ -150,7 +150,7 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
 
     // ==================== Null Handling Tests ====================
 
-    [Fact(Skip = "PostgreSQL JSONB returns 'null' string for JSON null, not empty result")]
+    [Fact]
     public async Task JsonbPath_NullJsonValue_ReturnsNone()
     {
         var env = _fixture.CreateDbEnvWithConnection();

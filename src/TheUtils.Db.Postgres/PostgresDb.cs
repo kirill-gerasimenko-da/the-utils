@@ -304,9 +304,18 @@ public static class PostgresDb
                 )
             );
             var scalar = await cmd.ExecuteScalarAsync(io.Token);
-            return scalar == null || scalar == DBNull.Value
-                ? Option<A>.None
-                : Some(JsonConvert.DeserializeObject<A>(scalar.ToString()!)!);
+
+            // Handle SQL NULL (no match found)
+            if (scalar == null || scalar == DBNull.Value)
+                return Option<A>.None;
+
+            var scalarString = scalar.ToString();
+
+            // Handle JSON null value (jsonb_path_query_first returns "null" for JSON null)
+            if (scalarString == "null")
+                return Option<A>.None;
+
+            return Some(JsonConvert.DeserializeObject<A>(scalarString!)!);
         })
         select result;
 }

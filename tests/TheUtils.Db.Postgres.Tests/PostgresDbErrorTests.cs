@@ -225,18 +225,6 @@ public class PostgresDbErrorTests : IAsyncLifetime
         await PostgresDb.advisoryUnlock(lockKey).Run(env).RunAsync();
     }
 
-    // ==================== Non-NpgsqlConnection Error ====================
-
-    [Fact(Skip = "Test requires SQLite provider which is not referenced in PostgreSQL test project")]
-    public async Task PostgresDb_WithNonNpgsqlConnection_ThrowsInvalidOperationException()
-    {
-        // This test would verify that PostgresDb operations fail gracefully
-        // when used with a non-NpgsqlConnection (e.g., SQLite).
-        // The GetNpgsqlConnection helper should throw InvalidOperationException
-        // with message "PostgreSQL extensions require an NpgsqlConnection"
-        await Task.CompletedTask;
-    }
-
     // ==================== LISTEN/NOTIFY Errors ====================
 
     [Fact]
