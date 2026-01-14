@@ -1,6 +1,6 @@
-# TheUtils.Db.Postgresql
+# TheUtils.Db.Postgres
 
-PostgreSQL-specific extensions for TheUtils.Db.
+Postgres-specific extensions for TheUtils.Db.
 
 ## Features
 
@@ -42,7 +42,7 @@ await PostgresDb.notify("my_channel", "payload").Run(env).RunAsync();
 ## Installation
 
 ```bash
-dotnet add package TheUtils.Db.Postgresql
+dotnet add package TheUtils.Db.Postgres
 ```
 
 Requires `TheUtils.Db` (installed automatically as dependency).

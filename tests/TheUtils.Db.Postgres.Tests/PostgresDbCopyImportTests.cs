@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using FluentAssertions;
 using LanguageExt;
@@ -9,9 +9,9 @@ using static LanguageExt.Prelude;
 using static TheUtils.Db;
 
 /// <summary>
-/// Tests for PostgreSQL COPY protocol binary import edge cases.
+/// Tests for Postgres COPY protocol binary import edge cases.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbCopyImportTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;

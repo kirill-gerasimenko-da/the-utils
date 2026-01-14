@@ -9,11 +9,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.SourceGenerator", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Db", "TheUtils.Db\TheUtils.Db.csproj", "{89FFE1C5-52E2-42D0-8F11-AA2317A2DCD7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Db.Postgresql", "TheUtils.Db.Postgresql\TheUtils.Db.Postgresql.csproj", "{B4A8A300-CD00-4F83-AC91-97B3C8AC1E56}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Db.Postgres", "TheUtils.Db.Postgres\TheUtils.Db.Postgres.csproj", "{B4A8A300-CD00-4F83-AC91-97B3C8AC1E56}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Db.Tests", "..\tests\TheUtils.Db.Tests\TheUtils.Db.Tests.csproj", "{4F6FAD59-385A-4AF9-ADDA-C5F899229B1F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Db.Postgresql.Tests", "..\tests\TheUtils.Db.Postgresql.Tests\TheUtils.Db.Postgresql.Tests.csproj", "{971C3466-844F-4744-B994-264B755BED27}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheUtils.Db.Postgres.Tests", "..\tests\TheUtils.Db.Postgres.Tests\TheUtils.Db.Postgres.Tests.csproj", "{971C3466-844F-4744-B994-264B755BED27}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

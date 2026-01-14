@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -6,7 +6,7 @@ using Testcontainers.PostgreSql;
 using Xunit;
 
 /// <summary>
-/// Shared PostgreSQL container fixture for all tests.
+/// Shared Postgres container fixture for all tests.
 /// Implements IAsyncLifetime to handle container lifecycle.
 /// </summary>
 public class PostgreSqlFixture : IAsyncLifetime
@@ -55,7 +55,7 @@ public class PostgreSqlFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Create a DbEnv with a dedicated NpgsqlConnection for PostgreSQL-specific features.
+    /// Create a DbEnv with a dedicated NpgsqlConnection for Postgres-specific features.
     /// </summary>
     public DbEnv CreateDbEnvWithConnection()
     {
@@ -77,9 +77,9 @@ public class PostgreSqlFixture : IAsyncLifetime
 }
 
 /// <summary>
-/// Collection definition for sharing the PostgreSQL fixture across test classes.
+/// Collection definition for sharing the Postgres fixture across test classes.
 /// </summary>
-[CollectionDefinition("PostgreSQL")]
+[CollectionDefinition("Postgres")]
 public class PostgreSqlCollection : ICollectionFixture<PostgreSqlFixture>
 {
 }

@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using FluentAssertions;
 using LanguageExt;
@@ -8,9 +8,9 @@ using static LanguageExt.Prelude;
 using static TheUtils.Db;
 
 /// <summary>
-/// Advanced tests for PostgreSQL JSONB operations.
+/// Advanced tests for Postgres JSONB operations.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;

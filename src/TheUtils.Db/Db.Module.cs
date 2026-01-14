@@ -25,16 +25,12 @@ public partial class Db
     /// <summary>
     /// Access the DbContext from environment.
     /// </summary>
-    public static Db<DbContext> context =>
-        from e in env
-        select e.Context;
+    public static Db<DbContext> context => from e in env select e.Context;
 
     /// <summary>
     /// Access the DatabaseFacade for raw operations.
     /// </summary>
-    public static Db<DatabaseFacade> facade =>
-        from c in context
-        select c.Database;
+    public static Db<DatabaseFacade> facade => from c in context select c.Database;
 
     // ==================== IO Lifting ====================
 
@@ -46,14 +42,12 @@ public partial class Db
     /// <summary>
     /// Lift an async operation into Db.
     /// </summary>
-    public static Db<A> liftIO<A>(Func<EnvIO, Task<A>> f) =>
-        liftIO(IO.liftAsync(f));
+    public static Db<A> liftIO<A>(Func<EnvIO, Task<A>> f) => liftIO(IO.liftAsync(f));
 
     /// <summary>
     /// Lift a synchronous operation into Db.
     /// </summary>
-    public static Db<A> liftIO<A>(Func<A> f) =>
-        liftIO(IO.lift(f));
+    public static Db<A> liftIO<A>(Func<A> f) => liftIO(IO.lift(f));
 
     // ==================== Pure & Fail ====================
 
@@ -151,14 +145,13 @@ public partial class Db
     /// <summary>
     /// Get the first row as OptionT (for monad transformer chaining).
     /// </summary>
-    public static OptionT<Db, A> headT<A>(IQueryable<A> query) =>
-        OptionT.lift(head(query));
+    public static OptionT<Db, A> headT<A>(IQueryable<A> query) => OptionT.lift(head(query));
 
     /// <summary>
     /// Get the first row from interpolated SQL as OptionT.
     /// </summary>
-    public static OptionT<Db, A> headT<A>(FormattableString sql) where A : class =>
-        OptionT.lift(head<A>(sql));
+    public static OptionT<Db, A> headT<A>(FormattableString sql)
+        where A : class => OptionT.lift(head<A>(sql));
 
     /// <summary>
     /// Get exactly one row (throws if not exactly one).
@@ -179,9 +172,8 @@ public partial class Db
     /// <summary>
     /// Get a DbSet for the entity type.
     /// </summary>
-    public static Db<DbSet<A>> set<A>() where A : class =>
-        from c in context
-        select c.Set<A>();
+    public static Db<DbSet<A>> set<A>()
+        where A : class => from c in context select c.Set<A>();
 
     /// <summary>
     /// Create a query from interpolated SQL.
@@ -202,7 +194,8 @@ public partial class Db
     /// <summary>
     /// Add an entity to the context.
     /// </summary>
-    public static Db<EntityEntry<A>> add<A>(A entity) where A : class =>
+    public static Db<EntityEntry<A>> add<A>(A entity)
+        where A : class =>
         from s in set<A>()
         from e in liftIO<EntityEntry<A>>(io => s.AddAsync(entity, io.Token).AsTask())
         select e;
@@ -210,7 +203,8 @@ public partial class Db
     /// <summary>
     /// Add multiple entities.
     /// </summary>
-    public static Db<Unit> addRange<A>(Seq<A> entities) where A : class =>
+    public static Db<Unit> addRange<A>(Seq<A> entities)
+        where A : class =>
         from s in set<A>()
         from _ in liftIO<Unit>(async io =>
         {
@@ -222,14 +216,14 @@ public partial class Db
     /// <summary>
     /// Update an entity.
     /// </summary>
-    public static Db<EntityEntry<A>> update<A>(A entity) where A : class =>
-        from s in set<A>()
-        select s.Update(entity);
+    public static Db<EntityEntry<A>> update<A>(A entity)
+        where A : class => from s in set<A>() select s.Update(entity);
 
     /// <summary>
     /// Update multiple entities.
     /// </summary>
-    public static Db<Unit> updateRange<A>(Seq<A> entities) where A : class =>
+    public static Db<Unit> updateRange<A>(Seq<A> entities)
+        where A : class =>
         from s in set<A>()
         from _ in liftIO<Unit>(() =>
         {
@@ -241,14 +235,14 @@ public partial class Db
     /// <summary>
     /// Delete an entity.
     /// </summary>
-    public static Db<EntityEntry<A>> delete<A>(A entity) where A : class =>
-        from s in set<A>()
-        select s.Remove(entity);
+    public static Db<EntityEntry<A>> delete<A>(A entity)
+        where A : class => from s in set<A>() select s.Remove(entity);
 
     /// <summary>
     /// Delete multiple entities.
     /// </summary>
-    public static Db<Unit> deleteRange<A>(Seq<A> entities) where A : class =>
+    public static Db<Unit> deleteRange<A>(Seq<A> entities)
+        where A : class =>
         from s in set<A>()
         from _ in liftIO<Unit>(() =>
         {
@@ -296,10 +290,16 @@ public partial class Db
     /// Begin a new transaction with optional isolation level.
     /// EF Core tracks the transaction automatically via Database.CurrentTransaction.
     /// </summary>
-    public static Db<IDbContextTransaction> beginTransaction(Option<IsolationLevel> level = default) =>
+    public static Db<IDbContextTransaction> beginTransaction(
+        Option<IsolationLevel> level = default
+    ) =>
         from e in env
         from t in liftIO<IDbContextTransaction>(io =>
-            e.Context.Database.BeginTransactionAsync((level | e.DefaultIsolation).IfNone(IsolationLevel.Unspecified), io.Token))
+            e.Context.Database.BeginTransactionAsync(
+                (level | e.DefaultIsolation).IfNone(IsolationLevel.Unspecified),
+                io.Token
+            )
+        )
         select t;
 
     /// <summary>
@@ -336,22 +336,27 @@ public partial class Db
     public static Db<A> transact<A>(Db<A> operation, Option<IsolationLevel> level = default) =>
         from tx in beginTransaction(level)
         from operationIO in Db.ToIO(
-            from r in operation
-            from _ in liftIO<Unit>(IO.liftAsync<Unit>(async envIO =>
-            {
-                await tx.CommitAsync(envIO.Token);
-                return unit;
-            }))
-            select r
-        ).As()
+                from r in operation
+                from _ in liftIO<Unit>(
+                    IO.liftAsync<Unit>(async envIO =>
+                    {
+                        await tx.CommitAsync(envIO.Token);
+                        return unit;
+                    })
+                )
+                select r
+            )
+            .As()
         from result in liftIO(
             operationIO.Catch(
                 _ => true,
-                err => IO.liftAsync<Unit>(async envIO =>
-                {
-                    await tx.RollbackAsync(envIO.Token);
-                    return unit;
-                }).Bind(_ => IO.fail<A>(err))
+                err =>
+                    IO.liftAsync<Unit>(async envIO =>
+                        {
+                            await tx.RollbackAsync(envIO.Token);
+                            return unit;
+                        })
+                        .Bind(_ => IO.fail<A>(err))
             )
         )
         select result;

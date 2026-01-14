@@ -1,40 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
-    <PropertyGroup>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>disable</Nullable>
-        <LangVersion>12</LangVersion>
-        <AssemblyName>TheUtils</AssemblyName>
-        <RootNamespace>TheUtils</RootNamespace>
-
-        <PackageVersion>1.0.145-beta</PackageVersion>
-        <Title>Utilities set</Title>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Description>Just a collection of useful opiniated extension methods</Description>
-        <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
-        <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
-        <Authors>Kirill Gerasimenko</Authors>
-        <PackageTags>language-ext utils</PackageTags>
-        <PackageId>TheUtils</PackageId>
-        <Product>TheUtils</Product>
-        <TargetFramework>net10.0</TargetFramework>
-        <PackageLicenseFile>LICENSE</PackageLicenseFile>
-
-    </PropertyGroup>
-
-    <ItemGroup>
-        <None Include="../../LICENSE" Pack="true" PackagePath="" />
-    </ItemGroup>
-    <ItemGroup>
-        <PackageReference Include="CliWrap" Version="3.10.0" />
-        <PackageReference Include="FluentValidation" Version="12.1.1" />
-        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.2" />
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-        <PackageReference Include="System.Linq.Async" Version="7.0.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.2" />
-    </ItemGroup>
-
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <LangVersion>12</LangVersion>
+    <AssemblyName>TheUtils</AssemblyName>
+    <RootNamespace>TheUtils</RootNamespace>
+    <PackageVersion>1.0.145-beta</PackageVersion>
+    <Title>Utilities set</Title>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Description>Just a collection of useful opiniated extension methods</Description>
+    <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
+    <Authors>Kirill Gerasimenko</Authors>
+    <PackageTags>language-ext utils</PackageTags>
+    <PackageId>TheUtils</PackageId>
+    <Product>TheUtils</Product>
+    <TargetFramework>net10.0</TargetFramework>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../LICENSE" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CliWrap" Version="3.10.0" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.2" />
+    <PackageReference
+      Include="Microsoft.Extensions.DependencyInjection.Abstractions"
+      Version="10.0.2"
+    />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageReference Include="System.Linq.Async" Version="7.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.2" />
+  </ItemGroup>
 </Project>

@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;

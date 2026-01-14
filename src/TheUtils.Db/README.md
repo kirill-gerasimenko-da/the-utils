@@ -36,8 +36,8 @@ var result = await Db.transact(operation)
 dotnet add package TheUtils.Db
 ```
 
-For PostgreSQL-specific features (COPY, LISTEN/NOTIFY, advisory locks), also add:
+For Postgres-specific features (COPY, LISTEN/NOTIFY, advisory locks), also add:
 
 ```bash
-dotnet add package TheUtils.Db.Postgresql
+dotnet add package TheUtils.Db.Postgres
 ```

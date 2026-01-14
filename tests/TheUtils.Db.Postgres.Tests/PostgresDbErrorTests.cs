@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using FluentAssertions;
 using LanguageExt;
@@ -10,9 +10,9 @@ using static LanguageExt.Prelude;
 using static TheUtils.Db;
 
 /// <summary>
-/// Tests for error scenarios in PostgreSQL-specific operations.
+/// Tests for error scenarios in Postgres-specific operations.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbErrorTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;

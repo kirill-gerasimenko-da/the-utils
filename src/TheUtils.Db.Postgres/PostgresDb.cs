@@ -8,7 +8,7 @@ using NpgsqlTypes;
 using static LanguageExt.Prelude;
 
 /// <summary>
-/// PostgreSQL-specific extensions for the Db monad.
+/// Postgres-specific extensions for the Db monad.
 /// Provides COPY protocol, LISTEN/NOTIFY, advisory locks, raw queries, and JSONB support.
 /// </summary>
 public static class PostgresDb
@@ -21,8 +21,9 @@ public static class PostgresDb
     private static NpgsqlConnection GetNpgsqlConnection(DbEnv env) =>
         env.Connection as NpgsqlConnection
         ?? throw new InvalidOperationException(
-            "PostgreSQL extensions require an NpgsqlConnection. " +
-            "Ensure DbContext is configured with Npgsql provider.");
+            "Postgres extensions require an NpgsqlConnection. "
+                + "Ensure DbContext is configured with Npgsql provider."
+        );
 
     // ==================== COPY Protocol ====================
 
@@ -39,7 +40,8 @@ public static class PostgresDb
             return unit;
         })
         from importer in Db.liftIO<NpgsqlBinaryImporter>(io =>
-            conn.BeginBinaryImportAsync(copyCommand, io.Token))
+            conn.BeginBinaryImportAsync(copyCommand, io.Token)
+        )
         select importer;
 
     /// <summary>
@@ -48,7 +50,8 @@ public static class PostgresDb
     public static Db<ulong> binaryImport<A>(
         string table,
         Seq<A> rows,
-        Action<NpgsqlBinaryImporter, A> writeRow) =>
+        Action<NpgsqlBinaryImporter, A> writeRow
+    ) =>
         from e in Db.env
         let conn = GetNpgsqlConnection(e)
         from count in Db.liftIO<ulong>(async io =>
@@ -56,7 +59,9 @@ public static class PostgresDb
             if (conn.State != ConnectionState.Open)
                 await conn.OpenAsync(io.Token);
             await using var writer = await conn.BeginBinaryImportAsync(
-                $"COPY {table} FROM STDIN (FORMAT BINARY)", io.Token);
+                $"COPY {table} FROM STDIN (FORMAT BINARY)",
+                io.Token
+            );
             foreach (var row in rows)
             {
                 await writer.StartRowAsync(io.Token);
@@ -79,7 +84,8 @@ public static class PostgresDb
             return unit;
         })
         from exporter in Db.liftIO<NpgsqlBinaryExporter>(io =>
-            conn.BeginBinaryExportAsync(copyCommand, io.Token))
+            conn.BeginBinaryExportAsync(copyCommand, io.Token)
+        )
         select exporter;
 
     // ==================== LISTEN/NOTIFY ====================
@@ -205,8 +211,7 @@ public static class PostgresDb
         from result in Db.liftIO(
             operationIO.Catch(
                 _ => true,
-                err => advisoryUnlockIO(key, conn)
-                         .Bind(_ => IO.fail<A>(err))
+                err => advisoryUnlockIO(key, conn).Bind(_ => IO.fail<A>(err))
             )
         )
         from __ in Db.liftIO(advisoryUnlockIO(key, conn))
@@ -232,7 +237,8 @@ public static class PostgresDb
     public static Db<Seq<A>> rawQuery<A>(
         string sql,
         Func<NpgsqlDataReader, A> mapper,
-        params NpgsqlParameter[] parameters) =>
+        params NpgsqlParameter[] parameters
+    ) =>
         from e in Db.env
         let conn = GetNpgsqlConnection(e)
         from results in Db.liftIO<Seq<A>>(async io =>
@@ -264,9 +270,7 @@ public static class PostgresDb
             cmd.CommandText = sql;
             cmd.Parameters.AddRange(parameters);
             var scalar = await cmd.ExecuteScalarAsync(io.Token);
-            return scalar == null || scalar == DBNull.Value
-                ? Option<A>.None
-                : Some((A)scalar);
+            return scalar == null || scalar == DBNull.Value ? Option<A>.None : Some((A)scalar);
         })
         select result;
 
@@ -279,7 +283,8 @@ public static class PostgresDb
         string table,
         string jsonColumn,
         string jsonPath,
-        Option<object> vars = default) =>
+        Option<object> vars = default
+    ) =>
         from e in Db.env
         let conn = GetNpgsqlConnection(e)
         from result in Db.liftIO<Option<A>>(async io =>
@@ -290,8 +295,14 @@ public static class PostgresDb
             cmd.CommandText = vars.IsNone
                 ? $"SELECT jsonb_path_query_first({jsonColumn}, $1) FROM {table}"
                 : $"SELECT jsonb_path_query_first({jsonColumn}, $1, $2) FROM {table}";
-            cmd.Parameters.Add(new NpgsqlParameter { Value = jsonPath, NpgsqlDbType = NpgsqlDbType.JsonPath });
-            vars.IfSome(v => cmd.Parameters.Add(new NpgsqlParameter { Value = v, NpgsqlDbType = NpgsqlDbType.Jsonb }));
+            cmd.Parameters.Add(
+                new NpgsqlParameter { Value = jsonPath, NpgsqlDbType = NpgsqlDbType.JsonPath }
+            );
+            vars.IfSome(v =>
+                cmd.Parameters.Add(
+                    new NpgsqlParameter { Value = v, NpgsqlDbType = NpgsqlDbType.Jsonb }
+                )
+            );
             var scalar = await cmd.ExecuteScalarAsync(io.Token);
             return scalar == null || scalar == DBNull.Value
                 ? Option<A>.None

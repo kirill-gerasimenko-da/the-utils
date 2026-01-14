@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using FluentAssertions;
 using LanguageExt;
@@ -8,9 +8,9 @@ using static LanguageExt.Prelude;
 using static TheUtils.Db;
 
 /// <summary>
-/// Tests for PostgreSQL LISTEN/NOTIFY notification streaming.
+/// Tests for Postgres LISTEN/NOTIFY notification streaming.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbNotificationStreamTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;

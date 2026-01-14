@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using FluentAssertions;
 using LanguageExt;
@@ -10,9 +10,9 @@ using static LanguageExt.Prelude;
 using static TheUtils.Db;
 
 /// <summary>
-/// Advanced tests for PostgreSQL raw query operations.
+/// Advanced tests for Postgres raw query operations.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;

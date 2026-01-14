@@ -9,9 +9,7 @@ using static LanguageExt.Prelude;
 /// The database monad - wraps ReaderT&lt;DbEnv, IO, A&gt;.
 /// Provides effectful database operations with environment access.
 /// </summary>
-public readonly record struct Db<A>(
-    ReaderT<DbEnv, IO, A> runDb
-) : K<Db, A>
+public readonly record struct Db<A>(ReaderT<DbEnv, IO, A> runDb) : K<Db, A>
 {
     /// <summary>
     /// Run the computation with the provided environment.
@@ -20,8 +18,11 @@ public readonly record struct Db<A>(
 
     // LINQ query syntax support
     public Db<B> Map<B>(Func<A, B> f) => new(runDb.Map(f));
+
     public Db<B> Bind<B>(Func<A, Db<B>> f) => new(runDb.Bind(a => f(a).runDb));
+
     public Db<B> Select<B>(Func<A, B> f) => Map(f);
+
     public Db<C> SelectMany<B, C>(Func<A, Db<B>> bind, Func<A, B, C> project) =>
         Bind(a => bind(a).Map(b => project(a, b)));
 }
@@ -30,22 +31,19 @@ public readonly record struct Db<A>(
 /// Db witness type with trait implementations.
 /// Uses Deriving for Monad; manual for MonadIO, MonadUnliftIO, Fallible, Readable.
 /// </summary>
-public partial class Db :
-    Deriving.Monad<Db, ReaderT<DbEnv, IO>>
+public partial class Db : Deriving.Monad<Db, ReaderT<DbEnv, IO>>
 {
     // ========== Deriving Morphisms (Required) ==========
 
     /// <summary>
     /// Transform Db to the underlying ReaderT transformer.
     /// </summary>
-    public static K<ReaderT<DbEnv, IO>, A> Transform<A>(K<Db, A> fa) =>
-        fa.As().runDb;
+    public static K<ReaderT<DbEnv, IO>, A> Transform<A>(K<Db, A> fa) => fa.As().runDb;
 
     /// <summary>
     /// CoTransform from ReaderT back to Db.
     /// </summary>
-    public static K<Db, A> CoTransform<A>(K<ReaderT<DbEnv, IO>, A> fa) =>
-        new Db<A>(fa.As());
+    public static K<Db, A> CoTransform<A>(K<ReaderT<DbEnv, IO>, A> fa) => new Db<A>(fa.As());
 
     // ========== Convenience ==========
 
@@ -75,16 +73,14 @@ public partial class Db : MonadIO<Db>, MonadUnliftIO<Db>, Fallible<Db>, Readable
     /// Extract the IO from within a Db computation.
     /// Returns a Db that, when run, produces the IO that the original computation would produce.
     /// </summary>
-    public static K<Db, IO<A>> ToIO<A>(K<Db, A> ma) =>
-        Asks<IO<A>>(env => ma.As().Run(env));
+    public static K<Db, IO<A>> ToIO<A>(K<Db, A> ma) => Asks<IO<A>>(env => ma.As().Run(env));
 
     // ========== Fallible ==========
 
     /// <summary>
     /// Fail with an error.
     /// </summary>
-    public static K<Db, A> Fail<A>(Error error) =>
-        LiftIO(IO.fail<A>(error));
+    public static K<Db, A> Fail<A>(Error error) => LiftIO(IO.fail<A>(error));
 
     /// <summary>
     /// Catch errors matching the predicate and handle them.
@@ -93,14 +89,16 @@ public partial class Db : MonadIO<Db>, MonadUnliftIO<Db>, Fallible<Db>, Readable
     public static K<Db, A> Catch<A>(
         K<Db, A> ma,
         Func<Error, bool> predicate,
-        Func<Error, K<Db, A>> handler)
+        Func<Error, K<Db, A>> handler
+    )
     {
         return new Db<A>(
             new ReaderT<DbEnv, IO, A>(env =>
-                ma.As().Run(env).Catch(err =>
-                    predicate(err)
-                        ? handler(err).As().Run(env)
-                        : IO.fail<A>(err))));
+                ma.As()
+                    .Run(env)
+                    .Catch(err => predicate(err) ? handler(err).As().Run(env) : IO.fail<A>(err))
+            )
+        );
     }
 
     // ========== Readable ==========

@@ -1,9 +1,9 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Test DbContext for PostgreSQL monad tests.
+/// Test DbContext for Postgres monad tests.
 /// </summary>
 public class TestDbContext : DbContext
 {

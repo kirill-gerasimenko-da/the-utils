@@ -1,4 +1,4 @@
-namespace TheUtils.DbPostgresqlTests;
+namespace TheUtils.DbPostgresTests;
 
 using FluentAssertions;
 using LanguageExt;
@@ -9,9 +9,9 @@ using static LanguageExt.Prelude;
 using static TheUtils.Db;
 
 /// <summary>
-/// Tests for PostgreSQL-specific operations (advisory locks, raw queries).
+/// Tests for Postgres-specific operations (advisory locks, raw queries).
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbAdvisoryLockTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
@@ -112,7 +112,7 @@ public class PostgresDbAdvisoryLockTests : IAsyncLifetime
 /// <summary>
 /// Tests for PostgreSQL raw queries.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbRawQueryTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
@@ -201,7 +201,7 @@ public class PostgresDbRawQueryTests : IAsyncLifetime
 /// <summary>
 /// Tests for COPY protocol operations.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbCopyTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
@@ -252,7 +252,7 @@ public class PostgresDbCopyTests : IAsyncLifetime
 /// <summary>
 /// Tests for LISTEN/NOTIFY operations.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbListenNotifyTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
@@ -291,7 +291,7 @@ public class PostgresDbListenNotifyTests : IAsyncLifetime
 /// <summary>
 /// Tests for JSONB operations.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbJsonbTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
@@ -374,7 +374,7 @@ public class PostgresDbJsonbTests : IAsyncLifetime
 /// <summary>
 /// Tests for nested resource patterns - combining transactions and locks.
 /// </summary>
-[Collection("PostgreSQL")]
+[Collection("Postgres")]
 public class PostgresDbNestedResourceTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
