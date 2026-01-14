@@ -1,4 +1,4 @@
-namespace TheUtils.PgTests;
+namespace TheUtils.DbTests;
 
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -47,22 +47,22 @@ public class PostgreSqlFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Create a PgEnv for the Pg monad.
+    /// Create a DbEnv for the Db monad.
     /// </summary>
-    public PgEnv CreatePgEnv()
+    public DbEnv CreateDbEnv()
     {
         var context = CreateDbContext();
-        return new PgEnv(context);
+        return new DbEnv(context);
     }
 
     /// <summary>
-    /// Create a PgEnv with a dedicated NpgsqlConnection for Npgsql-specific features.
+    /// Create a DbEnv with a dedicated connection.
     /// </summary>
-    public PgEnv CreatePgEnvWithConnection()
+    public DbEnv CreateDbEnvWithConnection()
     {
         var context = CreateDbContext();
         var connection = new NpgsqlConnection(ConnectionString);
-        return new PgEnv(context, connection);
+        return new DbEnv(context, connection);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ public class PostgreSqlFixture : IAsyncLifetime
     {
         await using var context = CreateDbContext();
         await context.Database.ExecuteSqlRawAsync(@"
-            TRUNCATE TABLE users, accounts, documents RESTART IDENTITY CASCADE;
+            TRUNCATE TABLE users, accounts RESTART IDENTITY CASCADE;
         ");
     }
 }

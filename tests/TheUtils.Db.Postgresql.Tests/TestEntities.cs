@@ -1,10 +1,10 @@
-namespace TheUtils.PgTests;
+namespace TheUtils.DbPostgresqlTests;
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 /// <summary>
-/// Test entity for Pg monad tests.
+/// Test entity for Db monad tests.
 /// </summary>
 [Table("users")]
 public class User

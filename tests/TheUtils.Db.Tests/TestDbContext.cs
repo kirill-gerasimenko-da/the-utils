@@ -1,9 +1,9 @@
-namespace TheUtils.PgTests;
+namespace TheUtils.DbTests;
 
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Test DbContext for Pg monad tests.
+/// Test DbContext for Db monad tests.
 /// </summary>
 public class TestDbContext : DbContext
 {
@@ -13,7 +13,6 @@ public class TestDbContext : DbContext
 
     public DbSet<User> Users => Set<User>();
     public DbSet<Account> Accounts => Set<Account>();
-    public DbSet<Document> Documents => Set<Document>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

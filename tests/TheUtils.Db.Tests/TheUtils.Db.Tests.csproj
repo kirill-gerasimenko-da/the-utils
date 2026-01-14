@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
-        <RootNamespace>TheUtils.PgTests</RootNamespace>
+        <RootNamespace>TheUtils.DbTests</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
@@ -20,14 +20,13 @@
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="Testcontainers.PostgreSql" Version="4.4.0" />
         <PackageReference Include="FluentAssertions" Version="8.3.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-preview.2.25163.8" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0-preview.1" />
+        <PackageReference Include="Testcontainers.PostgreSql" Version="4.4.0" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\TheUtils.Pg\TheUtils.Pg.csproj" />
+        <ProjectReference Include="..\..\src\TheUtils.Db\TheUtils.Db.csproj" />
     </ItemGroup>
 
 </Project>

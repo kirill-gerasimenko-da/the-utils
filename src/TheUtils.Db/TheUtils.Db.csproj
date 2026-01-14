@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12</LangVersion>
+        <RootNamespace>TheUtils</RootNamespace>
+        <TargetFramework>net10.0</TargetFramework>
+
+        <!-- NuGet Package Metadata -->
+        <PackageVersion>1.0.0-beta</PackageVersion>
+        <Title>Database Monad for language-ext</Title>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>Database-agnostic monad for functional EF Core operations using language-ext v5. Provides Db&lt;A&gt; monad with ReaderT+IO stack and EF Core integration.</Description>
+        <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
+        <Authors>Kirill Gerasimenko</Authors>
+        <PackageTags>database;monad;functional;language-ext;ef-core</PackageTags>
+        <PackageId>TheUtils.Db</PackageId>
+        <Product>TheUtils.Db</Product>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" PackagePath="" />
+        <None Include="README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
+    </ItemGroup>
+
+</Project>

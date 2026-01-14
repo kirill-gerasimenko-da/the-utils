@@ -9,15 +9,15 @@
 
         <!-- NuGet Package Metadata -->
         <PackageVersion>1.0.0-beta</PackageVersion>
-        <Title>PostgreSQL Monad for language-ext</Title>
+        <Title>PostgreSQL Extensions for TheUtils.Db</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Description>PostgreSQL monad for functional database operations using language-ext v5. Provides Pg&lt;A&gt; monad with StateT+ReaderT+IO stack, EF Core integration, and Npgsql-specific features (COPY, LISTEN/NOTIFY, advisory locks).</Description>
+        <Description>PostgreSQL-specific extensions for TheUtils.Db including COPY protocol, LISTEN/NOTIFY, advisory locks, and JSONB support.</Description>
         <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
         <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
         <Authors>Kirill Gerasimenko</Authors>
         <PackageTags>postgresql;monad;functional;language-ext;ef-core;npgsql</PackageTags>
-        <PackageId>TheUtils.Pg</PackageId>
-        <Product>TheUtils.Pg</Product>
+        <PackageId>TheUtils.Db.Postgresql</PackageId>
+        <Product>TheUtils.Db.Postgresql</Product>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
@@ -28,11 +28,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-preview.2.25163.8" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0-preview.2.25163.8" />
-        <PackageReference Include="Npgsql" Version="9.0.3" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0-preview.1" />
+        <ProjectReference Include="../TheUtils.Db/TheUtils.Db.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Npgsql" Version="10.0.0" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     </ItemGroup>
 
