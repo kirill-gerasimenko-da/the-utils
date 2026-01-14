@@ -240,10 +240,10 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
 
     // ==================== Transaction Integration Tests ====================
 
-    [Fact(Skip = "rawScalar uses separate connection and doesn't see uncommitted transaction data")]
+    [Fact]
     public async Task RawQuery_WithTransaction_SeesUncommittedData()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
 
         var query = transact(
             from _ in add(new User { Name = "TxQuery", Email = "txquery@test.com", Balance = 999 })
