@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>12</LangVersion>
+        <RootNamespace>TheUtils</RootNamespace>
+        <TargetFramework>net10.0</TargetFramework>
+
+        <!-- NuGet Package Metadata -->
+        <PackageVersion>1.0.0-beta</PackageVersion>
+        <Title>CLI Command Wrapper for LanguageExt</Title>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Description>Functional wrapper for CliWrap using LanguageExt IO monad. Simple static API for command execution with full CliWrap feature support.</Description>
+        <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
+        <Authors>Kirill Gerasimenko</Authors>
+        <PackageTags>cli;command;io;functional;language-ext;cliwrap</PackageTags>
+        <PackageId>TheUtils.Cli</PackageId>
+        <Product>TheUtils.Cli</Product>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../LICENSE" Pack="true" PackagePath="" />
+        <None Include="README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="CliWrap" Version="3.10.0" />
+        <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
+    </ItemGroup>
+
+</Project>
