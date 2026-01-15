@@ -331,4 +331,51 @@ public static class Cli
                 stdErrEncoding.IfNone(() => null!)
             );
         });
+
+    /// <summary>
+    /// Execute command as SourceT stream (functional monad-transformer approach).
+    /// Returns SourceT that can be composed with other streams and effects.
+    /// Requires understanding of LanguageExt.Streaming - consider using executeStream()
+    /// for simpler IAsyncEnumerable-based streaming.
+    /// </summary>
+    /// <param name="executablePath">Path to the executable to run</param>
+    /// <param name="arguments">Command arguments</param>
+    /// <param name="stdOutEncoding">Optional encoding for stdout (default: UTF8)</param>
+    /// <param name="stdErrEncoding">Optional encoding for stderr (default: UTF8)</param>
+    /// <param name="workingDirectory">Optional working directory</param>
+    /// <param name="environmentVariables">Optional environment variables to set</param>
+    /// <param name="credentials">Optional credentials for running as different user</param>
+    /// <param name="validation">Exit code validation strategy (default: check for zero)</param>
+    /// <param name="standardInput">Optional standard input pipe source</param>
+    /// <returns>SourceT monad-transformer containing command events</returns>
+    public static SourceT<IO, CommandEvent> executeSourceT(
+        string executablePath,
+        Seq<string> arguments = default,
+        Option<Encoding> stdOutEncoding = default,
+        Option<Encoding> stdErrEncoding = default,
+        Option<string> workingDirectory = default,
+        Map<string, string?> environmentVariables = default,
+        Option<Credentials> credentials = default,
+        CommandResultValidation validation = CommandResultValidation.ZeroExitCode,
+        Option<PipeSource> standardInput = default
+    )
+    {
+        // Execute the stream and get IO<IAsyncEnumerable<CommandEvent>>
+        var streamIO = executeStream(
+            executablePath,
+            arguments,
+            stdOutEncoding,
+            stdErrEncoding,
+            workingDirectory,
+            environmentVariables,
+            credentials,
+            validation,
+            standardInput
+        );
+
+        // Lift the IO<IAsyncEnumerable> into SourceT by binding and lifting
+        return from stream in SourceT.liftIO<IO, IAsyncEnumerable<CommandEvent>>(streamIO)
+               from evt in SourceT.lift<IO, CommandEvent>(stream)
+               select evt;
+    }
 }

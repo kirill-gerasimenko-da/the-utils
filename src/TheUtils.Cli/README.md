@@ -6,6 +6,7 @@ Functional wrapper for [CliWrap](https://github.com/Tyrrrz/CliWrap) using [Langu
 
 - ✅ Simple `IO<A>` based API - no complex monad stacks
 - ✅ Full CliWrap feature support - buffered, streaming, cancellation, validation, credentials
+- ✅ Multiple streaming options - IAsyncEnumerable, IObservable, and SourceT monad-transformer
 - ✅ Easy composition with other monads (especially `Db<A>`)
 - ✅ LanguageExt integration - `Seq`, `Map`, `Option` types
 - ✅ Immutable and functional - no side effects until `RunAsync()`
@@ -167,6 +168,77 @@ await foreach (var evt in eventsIO)
 }
 ```
 
+### Advanced Streaming with SourceT
+
+For advanced functional streaming scenarios, TheUtils.Cli provides `executeSourceT()` which returns a `SourceT<IO, CommandEvent>` monad-transformer from LanguageExt.Streaming.
+
+#### When to use SourceT vs IAsyncEnumerable
+
+**Use `executeStream()` (IAsyncEnumerable) when:**
+- You want simple, familiar streaming with `await foreach`
+- Sequential event processing is sufficient
+- You're new to functional programming
+- You want minimal dependencies
+
+**Use `executeSourceT()` when:**
+- You need advanced stream composition
+- You want to integrate with LanguageExt Pipes
+- You're building complex functional pipelines
+- You need monad-transformer capabilities
+
+#### SourceT Examples
+
+```csharp
+using LanguageExt;
+using LanguageExt.Streaming;
+using static TheUtils.Cli;
+
+// Execute and fold over events
+var count = await executeSourceT("echo", ["hello"])
+    .Fold(0, (acc, _) => acc + 1)
+    .RunAsync();
+
+Console.WriteLine($"Total events: {count}");
+
+// Filter and map events
+var outputs = await executeSourceT("ls", ["-la"])
+    .Filter(evt => evt is StandardOutputCommandEvent)
+    .Map(evt => ((StandardOutputCommandEvent)evt).Text)
+    .Fold(List<string>(), (list, text) => list.Add(text))
+    .RunAsync();
+
+foreach (var line in outputs)
+{
+    Console.WriteLine(line);
+}
+
+// Take only first N events
+var firstTwoEvents = await executeSourceT("echo", ["test"])
+    .Take(2)
+    .Fold(List<CommandEvent>(), (list, evt) => list.Add(evt))
+    .RunAsync();
+
+// Compose SourceT with other IO operations
+var result = await (
+    from _ in IO.lift(() => Console.WriteLine("Starting..."))
+    from sourceT in IO.pure(executeSourceT("echo", ["data"]))
+    from events in sourceT.Fold(List<CommandEvent>(), (list, evt) => list.Add(evt))
+    select events.Count
+).RunAsync();
+```
+
+#### SourceT Operations
+
+SourceT supports rich stream operations:
+- `Map` - transform events
+- `Filter` - filter events by predicate
+- `Fold` - reduce stream to single value
+- `Take` / `Skip` - limit or skip events
+- `Bind` - monadic composition
+- Conversion to `Producer` / `ProducerT` for Pipes
+
+See [LanguageExt.Streaming documentation](https://github.com/louthy/language-ext) for complete API reference.
+
 ### Cancellation
 
 ```csharp
@@ -315,6 +387,7 @@ var output = result.StandardOutput;
 
 - .NET 10.0 or later
 - LanguageExt.Core 5.0.0-beta-77 or later
+- LanguageExt.Streaming 5.0.0-beta-77 or later (for SourceT support)
 - CliWrap 3.10.0 or later
 
 ## License

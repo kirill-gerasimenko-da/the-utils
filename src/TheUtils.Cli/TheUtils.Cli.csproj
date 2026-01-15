@@ -11,7 +11,7 @@
         <PackageVersion>1.0.0-beta</PackageVersion>
         <Title>CLI Command Wrapper for LanguageExt</Title>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Description>Functional wrapper for CliWrap using LanguageExt IO monad. Simple static API for command execution with full CliWrap feature support.</Description>
+        <Description>Functional wrapper for CliWrap using LanguageExt IO monad. Provides simple static API for command execution with IAsyncEnumerable streaming and advanced SourceT support for functional stream composition.</Description>
         <PackageProjectUrl>https://github.com/kirill-gerasimenko-da/the-utils</PackageProjectUrl>
         <RepositoryUrl>https://github.com/kirill-gerasimenko-da/the-utils</RepositoryUrl>
         <Authors>Kirill Gerasimenko</Authors>
@@ -30,6 +30,7 @@
     <ItemGroup>
         <PackageReference Include="CliWrap" Version="3.10.0" />
         <PackageReference Include="LanguageExt.Core" Version="5.0.0-beta-77" />
+        <PackageReference Include="LanguageExt.Streaming" Version="5.0.0-beta-77" />
     </ItemGroup>
 
 </Project>
