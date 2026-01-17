@@ -168,8 +168,76 @@ public static class Val
     static Func<ValidationResult, Error> mapToError<A>() =>
         result => toError(result, $"Validation failed for object of type '{typeof(A).Name}'");
 
-    public class ValidatorImpl<A> : AbstractValidator<A>
+    class ValidatorImpl<A> : AbstractValidator<A>
     {
         public ValidatorImpl(Validator<A> validate) => validate(this);
     }
+
+    static Validation<Error, string> notEmpty(string value, Error error) =>
+        Optional(value).Bind(Ext.ifEmptyNone).ToValidation(error);
+
+    public static Validation<Error, string> asNotEmpty(string value, Error error) =>
+        notEmpty(value, error);
+
+    public static Validation<Error, Uri> asUri(string value, Func<Error> error) =>
+        Uri.IsWellFormedUriString(value, UriKind.Absolute) ? Pure(new Uri(value)) : Fail(error());
+
+    public static Validation<Error, Uri> asUri(string value, Error error) =>
+        Uri.IsWellFormedUriString(value, UriKind.Absolute) ? Pure(new Uri(value)) : Fail(error);
+
+    public static Validation<Error, bool> asBool(string value, Func<Error> error) =>
+        parseBool(value).ToValidation(error);
+
+    public static Validation<Error, bool> asBool(string value, Error error) =>
+        parseBool(value).ToValidation(error);
+
+    public static Validation<Error, int> asInt(string value, Func<Error> error) =>
+        parseInt(value).ToValidation(error);
+
+    public static Validation<Error, int> asInt(string value, Error error) =>
+        parseInt(value).ToValidation(error);
+
+    public static Validation<Error, long> asLong(string value, Func<Error> error) =>
+        parseLong(value).ToValidation(error);
+
+    public static Validation<Error, long> asLong(string value, Error error) =>
+        parseLong(value).ToValidation(error);
+
+    public static Validation<Error, decimal> asDecimal(string value, Func<Error> error) =>
+        parseDecimal(value).ToValidation(error);
+
+    public static Validation<Error, decimal> asDecimal(string value, Error error) =>
+        parseDecimal(value).ToValidation(error);
+
+    public static Validation<Error, double> asDouble(string value, Func<Error> error) =>
+        parseDouble(value).ToValidation(error);
+
+    public static Validation<Error, double> asDouble(string value, Error error) =>
+        parseDouble(value).ToValidation(error);
+
+    public static Validation<Error, T> asEnum<T>(string value, Func<Error> error)
+        where T : struct => parseEnumIgnoreCase<T>(value).ToValidation(error);
+
+    public static Validation<Error, T> asEnum<T>(string value, Error error)
+        where T : struct => parseEnumIgnoreCase<T>(value).ToValidation(error);
+
+    public static Validation<Error, TimeSpan> asTimeSpan(string value, Func<Error> error) =>
+        parseTimeSpan(value).ToValidation(error);
+
+    public static Validation<Error, TimeSpan> asTimeSpan(string value, Error error) =>
+        parseTimeSpan(value).ToValidation(error);
+
+    public static Validation<Error, Guid> asGuid(string value, Func<Error> error) =>
+        parseGuid(value).ToValidation(error);
+
+    public static Validation<Error, Guid> asGuid(string value, Error error) =>
+        parseGuid(value).ToValidation(error);
+
+    public static Validation<Error, DateTimeOffset> asDateTimeOffset(
+        string value,
+        Func<Error> error
+    ) => parseDateTimeOffset(value).ToValidation(error);
+
+    public static Validation<Error, DateTimeOffset> asDateTimeOffset(string value, Error error) =>
+        parseDateTimeOffset(value).ToValidation(error);
 }

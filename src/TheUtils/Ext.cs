@@ -31,8 +31,4 @@ public static class Ext
     public static Option<string> ifEmptyNone(string s) => s.IfEmptyNone();
 
     public static bool isSome<T>(Option<T> o, out T value) => o.IsSome(out value);
-
-    public static Eff<RT, Unit> Ignore<RT, A>(this Eff<RT, A> eff) => eff.IgnoreF().As();
-
-    public static Eff<RT, Unit> ignore<RT, A>(Eff<RT, A> eff) => eff.Ignore();
 }
