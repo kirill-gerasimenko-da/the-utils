@@ -2,7 +2,6 @@ namespace TheUtils.Tests;
 
 using FluentAssertions;
 using LanguageExt;
-using LanguageExt.Streaming;
 using Xunit;
 using static LanguageExt.Prelude;
 using static TheUtils.Cli;
@@ -21,7 +20,7 @@ public class CliSourceTTests
 
         // Reduce the stream into a list
         await sourceT
-            .Fold(events, (list, evt) =>
+            .FoldReduce(events, (list, evt) =>
             {
                 list.Add(evt);
                 return list;
@@ -52,7 +51,7 @@ public class CliSourceTTests
             .Filter(s => !string.IsNullOrWhiteSpace(s));
 
         await sourceT
-            .Fold(outputs, (list, text) =>
+            .FoldReduce(outputs, (list, text) =>
             {
                 list.Add(text);
                 return list;
@@ -77,7 +76,7 @@ public class CliSourceTTests
         );
 
         await sourceT
-            .Fold(events, (list, evt) =>
+            .FoldReduce(events, (list, evt) =>
             {
                 list.Add(evt);
                 return list;
@@ -102,7 +101,7 @@ public class CliSourceTTests
         var result = await (
             from _ in IO.lift(() => Console.WriteLine("Starting command..."))
             from sourceT in IO.pure(executeSourceT("echo", ["compose"]))
-            from events in sourceT.Fold(
+            from events in sourceT.FoldReduce(
                 List<CommandEvent>(),
                 (list, evt) => list.Add(evt)
             )
@@ -118,7 +117,7 @@ public class CliSourceTTests
     {
         // Arrange & Act
         var count = await executeSourceT("echo", ["count me"])
-            .Fold(0, (acc, _) => acc + 1)
+            .FoldReduce(0, (acc, _) => acc + 1)
             .RunAsync();
 
         // Assert
@@ -134,7 +133,7 @@ public class CliSourceTTests
 
         await executeSourceT("echo", ["take test"])
             .Take(2) // Take only first 2 events
-            .Fold(events, (list, evt) =>
+            .FoldReduce(events, (list, evt) =>
             {
                 list.Add(evt);
                 return list;
@@ -155,7 +154,7 @@ public class CliSourceTTests
         await executeSourceT("echo", ["filter"])
             .Filter(evt => evt is StandardOutputCommandEvent)
             .Map(evt => (StandardOutputCommandEvent)evt)
-            .Fold(outputEvents, (list, evt) =>
+            .FoldReduce(outputEvents, (list, evt) =>
             {
                 list.Add(evt);
                 return list;
