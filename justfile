@@ -30,16 +30,16 @@ test-db-pg:
 test-db-all: test-db test-db-pg
 
 pack: build
-    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils/TheUtils.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-6)
-    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-6)
+    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils/TheUtils.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-7)
+    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.SourceGenerator/TheUtils.SourceGenerator.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-7)
 
 # Pack the core database monad
 pack-db: build
-    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.Db/TheUtils.Db.csproj" -c Release -o ../publish /p:PackageVersion=1.0.0-beta)
+    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.Db/TheUtils.Db.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-7)
 
 # Pack Postgres extensions
 pack-db-pg: build
-    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.Db.Postgres/TheUtils.Db.Postgres.csproj" -c Release -o ../publish /p:PackageVersion=1.0.0-beta)
+    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.Db.Postgres/TheUtils.Db.Postgres.csproj" -c Release -o ../publish /p:PackageVersion=2.2.0-beta-7)
 
 # Pack all database packages
 pack-db-all: pack-db pack-db-pg
