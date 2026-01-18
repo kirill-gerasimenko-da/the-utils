@@ -9,6 +9,7 @@ alias d := deps
 alias td := test-db
 alias tdp := test-db-pg
 alias tda := test-db-all
+alias pc := pack-cli
 
 default: build
 
@@ -47,4 +48,8 @@ pack-db-pg: build
 # Pack all database packages
 pack-db-all: pack-db pack-db-pg
 
-pack-all: pack pack-db-all
+# Pack CLI wrapper
+pack-cli: build
+    @(cd ./src && dotnet build --no-restore -tl:off -c Release && dotnet pack "./TheUtils.Cli/TheUtils.Cli.csproj" -c Release -o ../publish /p:PackageVersion={{nuget_version}})
+
+pack-all: pack pack-cli pack-db-all
