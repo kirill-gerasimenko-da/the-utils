@@ -70,17 +70,6 @@ public class CliCompositionTests
     }
 
     [Fact]
-    public async Task ExecuteIgnore_Extension_ReturnsUnit()
-    {
-        // Arrange & Act
-        var result = await "echo".executeIgnore("hello")
-            .RunAsync();
-
-        // Assert
-        result.Should().Be(unit);
-    }
-
-    [Fact]
     public async Task ExecuteString_Extension_ReturnsString()
     {
         // Arrange & Act

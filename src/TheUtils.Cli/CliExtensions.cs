@@ -8,30 +8,15 @@ using static LanguageExt.Prelude;
 /// </summary>
 public static class CliExtensions
 {
-    /// <summary>
-    /// Execute command and ignore result (return Unit).
-    /// Useful for fire-and-forget scenarios or when composing with other monads.
-    /// </summary>
-    /// <param name="executablePath">Path to the executable to run</param>
-    /// <param name="arguments">Command arguments</param>
-    /// <returns>IO monad containing Unit</returns>
-    public static IO<Unit> executeIgnore(
-        this string executablePath,
-        params string[] arguments
-    ) =>
-        Cli.execute(executablePath, toSeq(arguments))
-            .Map(_ => unit);
-
-    /// <summary>
-    /// Execute command and return stdout as string.
-    /// Convenience extension for simple command execution.
-    /// </summary>
-    /// <param name="executablePath">Path to the executable to run</param>
-    /// <param name="arguments">Command arguments</param>
-    /// <returns>IO monad containing stdout string</returns>
-    public static IO<string> executeString(
-        this string executablePath,
-        params string[] arguments
-    ) =>
-        Cli.executeToString(executablePath, toSeq(arguments));
+    extension(string executablePath)
+    {
+        /// <summary>
+        /// Execute command and return stdout as string.
+        /// Convenience extension for simple command execution.
+        /// </summary>
+        /// <param name="arguments">Command arguments</param>
+        /// <returns>IO monad containing stdout string</returns>
+        public IO<string> executeString(params string[] arguments) =>
+            Cli.executeToString(executablePath, toSeq(arguments));
+    }
 }

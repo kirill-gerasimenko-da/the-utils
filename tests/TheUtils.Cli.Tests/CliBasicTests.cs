@@ -11,13 +11,14 @@ public class CliBasicTests
     [Fact]
     public async Task Execute_EchoCommand_ReturnsSuccess()
     {
-        // Arrange & Act
-        var result = await execute("echo", ["hello"])
+        // Arrange & Act - use executeBuffered to get both result and output
+        var result = await executeBuffered("echo", ["hello"])
             .RunAsync();
 
         // Assert
         result.ExitCode.Should().Be(0);
         result.IsSuccess.Should().BeTrue();
+        result.StandardOutput.Trim().Should().Be("hello");
     }
 
     [Fact]

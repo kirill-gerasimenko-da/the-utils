@@ -43,6 +43,9 @@ public readonly record struct Db<A>(ReaderT<DbEnv, IO, A> runDb) : K<Db, A>
 
     public static Db<A> operator >>(Db<A> lhs, IO<A> rhs) =>
         lhs.Bind(_ => Db.LiftIO(rhs).As());
+
+    // ignore
+    public static Db<Unit> operator ~(Db<A> ma) => ma.Map(_ => unit);
 }
 
 /// <summary>
@@ -148,15 +151,19 @@ public partial class Db : MonadUnliftIO<Db>, Fallible<Db>, Readable<Db, DbEnv>
 /// </summary>
 public static class DbExtensions
 {
-    /// <summary>
-    /// Convert K&lt;Db, A&gt; to Db&lt;A&gt;.
-    /// </summary>
-    public static Db<A> As<A>(this K<Db, A> ma)
-        where A : notnull => Db.As(ma);
+    extension<A>(K<Db, A> ma) where A : notnull
+    {
+        /// <summary>
+        /// Convert K&lt;Db, A&gt; to Db&lt;A&gt;.
+        /// </summary>
+        public Db<A> As() => Db.As(ma);
+    }
 
-    /// <summary>
-    /// Ignore the result, returning Unit.
-    /// </summary>
-    public static Db<Unit> Ignore<A>(this Db<A> ma)
-        where A : notnull => ma.Map(_ => unit);
+    extension<A>(Db<A> ma) where A : notnull
+    {
+        /// <summary>
+        /// Ignore the result, returning Unit.
+        /// </summary>
+        public Db<Unit> Ignore() => ma.Map(_ => unit);
+    }
 }

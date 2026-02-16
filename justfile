@@ -1,6 +1,6 @@
 set positional-arguments
 
-nuget_version := "3.0.0-beta-2"
+nuget_version := "3.0.0-beta-3"
 
 alias t := restore
 alias b := build

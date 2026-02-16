@@ -9,52 +9,54 @@ using Npgsql;
 /// </summary>
 public static class PostgresDbExtensions
 {
-    /// <summary>
-    /// Convert Npgsql notifications to an async enumerable stream.
-    /// </summary>
-    public static async IAsyncEnumerable<NpgsqlNotificationEventArgs> ToNotificationStream(
-        this NpgsqlConnection conn,
-        [EnumeratorCancellation] CancellationToken ct = default
-    )
+    extension(NpgsqlConnection conn)
     {
-        var channel = Channel.CreateUnbounded<NpgsqlNotificationEventArgs>();
-
-        void OnNotification(object sender, NpgsqlNotificationEventArgs e) =>
-            channel.Writer.TryWrite(e);
-
-        conn.Notification += OnNotification;
-        Task? waitTask = null;
-
-        try
+        /// <summary>
+        /// Convert Npgsql notifications to an async enumerable stream.
+        /// </summary>
+        public async IAsyncEnumerable<NpgsqlNotificationEventArgs> ToNotificationStream(
+            [EnumeratorCancellation] CancellationToken ct = default
+        )
         {
-            waitTask = Task.Run(
-                async () =>
-                {
-                    try
-                    {
-                        while (!ct.IsCancellationRequested)
-                            await conn.WaitAsync(ct);
-                    }
-                    finally
-                    {
-                        channel.Writer.TryComplete();
-                    }
-                },
-                ct
-            );
+            var channel = Channel.CreateUnbounded<NpgsqlNotificationEventArgs>();
 
-            await foreach (var notification in channel.Reader.ReadAllAsync(ct))
-                yield return notification;
-        }
-        finally
-        {
-            if (waitTask != null)
+            void OnNotification(object sender, NpgsqlNotificationEventArgs e) =>
+                channel.Writer.TryWrite(e);
+
+            conn.Notification += OnNotification;
+            Task? waitTask = null;
+
+            try
             {
-                try { await waitTask; }
-                catch (OperationCanceledException) { }
-            }
+                waitTask = Task.Run(
+                    async () =>
+                    {
+                        try
+                        {
+                            while (!ct.IsCancellationRequested)
+                                await conn.WaitAsync(ct);
+                        }
+                        finally
+                        {
+                            channel.Writer.TryComplete();
+                        }
+                    },
+                    ct
+                );
 
-            conn.Notification -= OnNotification;
+                await foreach (var notification in channel.Reader.ReadAllAsync(ct))
+                    yield return notification;
+            }
+            finally
+            {
+                if (waitTask != null)
+                {
+                    try { await waitTask; }
+                    catch (OperationCanceledException) { }
+                }
+
+                conn.Notification -= OnNotification;
+            }
         }
     }
 }

@@ -313,9 +313,6 @@ var output = await (
 The package includes convenient extension methods:
 
 ```csharp
-// Execute and ignore result
-await "echo".executeIgnore("Hello");
-
 // Execute and get stdout
 var output = await "ls".executeString("-la");
 ```

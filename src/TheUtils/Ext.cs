@@ -8,21 +8,46 @@ using static LanguageExt.Prelude;
 
 public static class Ext
 {
-    public static T IfNoneDefault<T>(this Option<T> opt)
-        where T : class => opt.IsNone ? default : opt.ValueUnsafe();
-
-    public static Option<string> IfEmptyNone(this string s) => isEmpty(s) ? None : Some(s);
-
-    public static bool IsSome<T>(this Option<T> o, out T value)
+    extension<T>(Option<T> opt) where T : class
     {
-        if (o.IsNone)
-        {
-            value = default;
-            return false;
-        }
+        public T IfNoneDefault() => opt.IsNone ? default : opt.ValueUnsafe();
+    }
 
-        value = o.ValueUnsafe();
-        return true;
+    extension(string s)
+    {
+        public Option<string> IfEmptyNone() => isEmpty(s) ? None : Some(s);
+    }
+
+    extension<T>(Option<T> o)
+    {
+        public bool IsSome(out T value)
+        {
+            if (o.IsNone)
+            {
+                value = default;
+                return false;
+            }
+
+            value = o.ValueUnsafe();
+            return true;
+        }
+    }
+
+    // ignore operators
+
+    extension<A>(IO<A> _)
+    {
+        public static IO<Unit> operator ~(IO<A> ma) => ma.Map(_ => unit);
+    }
+
+    extension<A>(Eff<A> _)
+    {
+        public static Eff<Unit> operator ~(Eff<A> ma) => ma.Map(_ => unit);
+    }
+
+    extension<RT, A>(Eff<RT, A> _)
+    {
+        public static Eff<RT, Unit> operator ~(Eff<RT, A> ma) => ma.Map(_ => unit);
     }
 
     public static T ifNoneDefault<T>(Option<T> opt)
