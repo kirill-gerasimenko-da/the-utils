@@ -3,6 +3,7 @@ namespace TheUtils.DbPostgresTests;
 using FluentAssertions;
 using LanguageExt;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Xunit;
 using static LanguageExt.Prelude;
 using static TheUtils.Db;
@@ -28,7 +29,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_ArrayAccess_ReturnsElement()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Insert document with array
         await add(new Document
@@ -40,8 +42,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         // Access array element
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.items[0]")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.items[0]")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be("first"));
@@ -50,7 +52,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_ArrayLastElement_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -61,8 +64,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         // Access last element using index
-        var result = await PostgresDb.jsonbPath<int>("documents", "metadata", "$.numbers[3]")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<int>(conn, "documents", "metadata", "$.numbers[3]")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(40));
@@ -71,7 +74,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_ArrayOutOfBounds_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -82,8 +86,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         // Access beyond array bounds
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.items[99]")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.items[99]")
+            .RunAsync();
 
         result.IsNone.Should().BeTrue();
     }
@@ -93,7 +97,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_NestedDeep_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -103,8 +108,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.level1.level2.level3.level4")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.level1.level2.level3.level4")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be("deepValue"));
@@ -113,7 +118,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_NestedWithMixedTypes_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -124,26 +130,26 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         // Get string
-        var name = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.user.name")
-            .Run(env).RunAsync();
+        var name = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.user.name")
+            .RunAsync();
         name.IsSome.Should().BeTrue();
         name.IfSome(v => v.Should().Be("John"));
 
         // Get number
-        var age = await PostgresDb.jsonbPath<int>("documents", "metadata", "$.user.age")
-            .Run(env).RunAsync();
+        var age = await PostgresDb.jsonbPath<int>(conn, "documents", "metadata", "$.user.age")
+            .RunAsync();
         age.IsSome.Should().BeTrue();
         age.IfSome(v => v.Should().Be(30));
 
         // Get boolean
-        var active = await PostgresDb.jsonbPath<bool>("documents", "metadata", "$.user.active")
-            .Run(env).RunAsync();
+        var active = await PostgresDb.jsonbPath<bool>(conn, "documents", "metadata", "$.user.active")
+            .RunAsync();
         active.IsSome.Should().BeTrue();
         active.IfSome(v => v.Should().BeTrue());
 
         // Get array element
-        var score = await PostgresDb.jsonbPath<int>("documents", "metadata", "$.user.scores[1]")
-            .Run(env).RunAsync();
+        var score = await PostgresDb.jsonbPath<int>(conn, "documents", "metadata", "$.user.scores[1]")
+            .RunAsync();
         score.IsSome.Should().BeTrue();
         score.IfSome(v => v.Should().Be(90));
     }
@@ -153,7 +159,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_NullJsonValue_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -164,8 +171,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         // JSON null should return None
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.field")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.field")
+            .RunAsync();
 
         result.IsNone.Should().BeTrue();
     }
@@ -173,7 +180,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_EmptyObject_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -183,8 +191,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.nonexistent")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.nonexistent")
+            .RunAsync();
 
         result.IsNone.Should().BeTrue();
     }
@@ -192,7 +200,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_EmptyArray_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -202,8 +211,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.items[0]")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.items[0]")
+            .RunAsync();
 
         result.IsNone.Should().BeTrue();
     }
@@ -213,7 +222,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_IntegerValue_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -223,8 +233,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<int>("documents", "metadata", "$.count")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<int>(conn, "documents", "metadata", "$.count")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(42));
@@ -233,7 +243,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_DecimalValue_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -243,8 +254,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<decimal>("documents", "metadata", "$.price")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<decimal>(conn, "documents", "metadata", "$.price")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(19.99m));
@@ -253,7 +264,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_LargeNumber_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -263,8 +275,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<long>("documents", "metadata", "$.bigNumber")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<long>(conn, "documents", "metadata", "$.bigNumber")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(9999999999999L));
@@ -275,7 +287,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_StringWithSpecialCharacters_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -285,8 +298,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.text")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.text")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Contain("World"));
@@ -295,7 +308,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_UnicodeString_ReturnsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -305,8 +319,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.greeting")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.greeting")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Contain("日本語"));
@@ -317,7 +331,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_WithVariables_SubstitutesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -329,11 +344,12 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
 
         // Use variable to filter - note: jsonb_path_query_first with vars
         var result = await PostgresDb.jsonbPath<string>(
+                conn,
                 "documents",
                 "metadata",
                 "$.users[0].name",
                 None)
-            .Run(env).RunAsync();
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be("Alice"));
@@ -344,7 +360,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_MultipleDocuments_ReturnsFromFirst()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new Document { Title = "First", Metadata = """{"value": "first"}""" },
@@ -353,8 +370,8 @@ public class PostgresDbJsonbAdvancedTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         // jsonbPath queries the first matching row
-        var result = await PostgresDb.jsonbPath<string>("documents", "metadata", "$.value")
-            .Run(env).RunAsync();
+        var result = await PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.value")
+            .RunAsync();
 
         result.IsSome.Should().BeTrue();
         // Should get first inserted value

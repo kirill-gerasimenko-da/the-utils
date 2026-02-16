@@ -28,19 +28,18 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
     [Fact]
     public async Task ListenAndNotify_ReceivesNotification()
     {
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var channel = "test_channel_basic";
         var receivedPayload = "";
         var received = new TaskCompletionSource<bool>();
         using var cts = new CancellationTokenSource();
 
         // Set up listener
-        await PostgresDb.listen(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, channel).RunAsync();
 
-        // Get the connection to add notification handler
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        // Add notification handler
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == channel)
             {
@@ -52,12 +51,12 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Start waiting for notifications in background
         var waitTask = Task.Run(async () =>
         {
-            try { await conn.WaitAsync(cts.Token); }
+            try { await listenerConn.WaitAsync(cts.Token); }
             catch (OperationCanceledException) { }
         });
 
         // Send notification
-        await PostgresDb.notify(channel, "hello_world").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "hello_world").RunAsync();
 
         // Wait for notification (with timeout)
         var completedInTime = await Task.WhenAny(received.Task, Task.Delay(5000)) == received.Task;
@@ -68,23 +67,22 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Cleanup - cancel wait first, then unlisten
         await cts.CancelAsync();
         await waitTask;
-        await PostgresDb.unlisten(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, channel).RunAsync();
     }
 
     [Fact]
     public async Task Notifications_ReceivesMultipleMessages()
     {
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var channel = "test_channel_multi";
         var receivedMessages = new List<string>();
         var messagesReceived = new TaskCompletionSource<bool>();
         using var cts = new CancellationTokenSource();
 
-        await PostgresDb.listen(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, channel).RunAsync();
 
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == channel)
             {
@@ -100,15 +98,15 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
             try
             {
                 while (receivedMessages.Count < 3)
-                    await conn.WaitAsync(cts.Token);
+                    await listenerConn.WaitAsync(cts.Token);
             }
             catch (OperationCanceledException) { }
         });
 
         // Send multiple notifications
-        await PostgresDb.notify(channel, "message1").Run(notifierEnv).RunAsync();
-        await PostgresDb.notify(channel, "message2").Run(notifierEnv).RunAsync();
-        await PostgresDb.notify(channel, "message3").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "message1").RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "message2").RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "message3").RunAsync();
 
         var completed = await Task.WhenAny(messagesReceived.Task, Task.Delay(5000)) == messagesReceived.Task;
 
@@ -121,23 +119,22 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Cleanup - cancel wait first, then unlisten
         await cts.CancelAsync();
         await listenTask;
-        await PostgresDb.unlisten(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, channel).RunAsync();
     }
 
     [Fact]
     public async Task Notifications_WithPayload_ParsesCorrectly()
     {
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var channel = "test_channel_payload";
         var receivedPayloads = new List<string>();
         var done = new TaskCompletionSource<bool>();
         using var cts = new CancellationTokenSource();
 
-        await PostgresDb.listen(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, channel).RunAsync();
 
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == channel)
             {
@@ -152,14 +149,14 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
             try
             {
                 while (receivedPayloads.Count < 2)
-                    await conn.WaitAsync(cts.Token);
+                    await listenerConn.WaitAsync(cts.Token);
             }
             catch (OperationCanceledException) { }
         });
 
         // Send payloads with different content
-        await PostgresDb.notify(channel, """{"type":"event","data":123}""").Run(notifierEnv).RunAsync();
-        await PostgresDb.notify(channel, "simple_text_payload").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel, """{"type":"event","data":123}""").RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "simple_text_payload").RunAsync();
 
         await Task.WhenAny(done.Task, Task.Delay(5000));
 
@@ -169,14 +166,14 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Cleanup - cancel wait first, then unlisten
         await cts.CancelAsync();
         await listenTask;
-        await PostgresDb.unlisten(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, channel).RunAsync();
     }
 
     [Fact]
     public async Task Notifications_DifferentChannels_OnlyReceivesSubscribed()
     {
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var subscribedChannel = "subscribed_channel";
         var otherChannel = "other_channel";
         var receivedFromSubscribed = new List<string>();
@@ -185,10 +182,9 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         using var cts = new CancellationTokenSource();
 
         // Only listen to one channel
-        await PostgresDb.listen(subscribedChannel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, subscribedChannel).RunAsync();
 
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == subscribedChannel)
                 receivedFromSubscribed.Add(args.Payload);
@@ -201,13 +197,13 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
 
         var listenTask = Task.Run(async () =>
         {
-            try { await conn.WaitAsync(cts.Token); }
+            try { await listenerConn.WaitAsync(cts.Token); }
             catch (OperationCanceledException) { }
         });
 
         // Send to both channels
-        await PostgresDb.notify(otherChannel, "should_not_receive").Run(notifierEnv).RunAsync();
-        await PostgresDb.notify(subscribedChannel, "should_receive").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, otherChannel, "should_not_receive").RunAsync();
+        await PostgresDb.notify(notifierConn, subscribedChannel, "should_receive").RunAsync();
 
         await Task.WhenAny(done.Task, Task.Delay(5000));
 
@@ -217,28 +213,28 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Cleanup - cancel wait first, then unlisten
         await cts.CancelAsync();
         await listenTask;
-        await PostgresDb.unlisten(subscribedChannel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, subscribedChannel).RunAsync();
     }
 
     [Fact]
     public async Task ListenUnlisten_MultipleChannels_Works()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var channel1 = "multi_ch1";
         var channel2 = "multi_ch2";
         var channel3 = "multi_ch3";
 
         // Subscribe to multiple channels
-        await PostgresDb.listen(channel1).Run(env).RunAsync();
-        await PostgresDb.listen(channel2).Run(env).RunAsync();
-        await PostgresDb.listen(channel3).Run(env).RunAsync();
+        await PostgresDb.listen(conn, channel1).RunAsync();
+        await PostgresDb.listen(conn, channel2).RunAsync();
+        await PostgresDb.listen(conn, channel3).RunAsync();
 
         // Unsubscribe from one
-        await PostgresDb.unlisten(channel2).Run(env).RunAsync();
+        await PostgresDb.unlisten(conn, channel2).RunAsync();
 
         // Unsubscribe from all remaining
-        await PostgresDb.unlisten(channel1).Run(env).RunAsync();
-        await PostgresDb.unlisten(channel3).Run(env).RunAsync();
+        await PostgresDb.unlisten(conn, channel1).RunAsync();
+        await PostgresDb.unlisten(conn, channel3).RunAsync();
 
         // Should not throw
     }
@@ -246,16 +242,15 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
     [Fact]
     public async Task Notify_EmptyPayload_Works()
     {
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var channel = "empty_payload_channel";
         var received = new TaskCompletionSource<string>();
         using var cts = new CancellationTokenSource();
 
-        await PostgresDb.listen(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, channel).RunAsync();
 
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == channel)
                 received.TrySetResult(args.Payload);
@@ -263,12 +258,12 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
 
         var listenTask = Task.Run(async () =>
         {
-            try { await conn.WaitAsync(cts.Token); }
+            try { await listenerConn.WaitAsync(cts.Token); }
             catch (OperationCanceledException) { }
         });
 
         // Send notification with empty payload
-        await PostgresDb.notify(channel, "").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "").RunAsync();
 
         var payload = await Task.WhenAny(received.Task, Task.Delay(5000)) == received.Task
             ? await received.Task
@@ -279,22 +274,21 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Cleanup - cancel wait first, then unlisten
         await cts.CancelAsync();
         await listenTask;
-        await PostgresDb.unlisten(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, channel).RunAsync();
     }
 
     [Fact]
     public async Task Notify_WithoutPayload_Works()
     {
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var channel = "no_payload_channel";
         var received = new TaskCompletionSource<bool>();
         using var cts = new CancellationTokenSource();
 
-        await PostgresDb.listen(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, channel).RunAsync();
 
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == channel)
                 received.TrySetResult(true);
@@ -302,12 +296,12 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
 
         var listenTask = Task.Run(async () =>
         {
-            try { await conn.WaitAsync(cts.Token); }
+            try { await listenerConn.WaitAsync(cts.Token); }
             catch (OperationCanceledException) { }
         });
 
         // Send notification without explicit payload (uses default empty)
-        await PostgresDb.notify(channel).Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel).RunAsync();
 
         var wasReceived = await Task.WhenAny(received.Task, Task.Delay(5000)) == received.Task;
         wasReceived.Should().BeTrue();
@@ -315,7 +309,7 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
         // Cleanup - cancel wait first, then unlisten
         await cts.CancelAsync();
         await listenTask;
-        await PostgresDb.unlisten(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, channel).RunAsync();
     }
 
     // ==================== Notification Stream (IAsyncEnumerable) ====================
@@ -323,10 +317,10 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
     [Fact]
     public async Task Notifications_Property_ReturnsAsyncEnumerable()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
-        var query = PostgresDb.notifications;
-        var stream = await query.Run(env).RunAsync();
+        var query = PostgresDb.notifications(conn);
+        var stream = await query.RunAsync();
 
         stream.Should().NotBeNull();
         stream.Should().BeAssignableTo<IAsyncEnumerable<NpgsqlNotificationEventArgs>>();
@@ -335,17 +329,16 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
     [Fact]
     public async Task Unlisten_AfterListen_StopsReceivingNotifications()
     {
-        var listenerEnv = _fixture.CreateDbEnvWithConnection();
-        var notifierEnv = _fixture.CreateDbEnvWithConnection();
+        var listenerConn = _fixture.CreateConnection();
+        var notifierConn = _fixture.CreateConnection();
         var channel = "unlisten_test";
         var receivedCount = 0;
         var firstReceived = new TaskCompletionSource<bool>();
         using var cts = new CancellationTokenSource();
 
-        await PostgresDb.listen(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.listen(listenerConn, channel).RunAsync();
 
-        var conn = listenerEnv.Connection as NpgsqlConnection;
-        conn!.Notification += (_, args) =>
+        listenerConn.Notification += (_, args) =>
         {
             if (args.Channel == channel)
             {
@@ -360,24 +353,24 @@ public class PostgresDbNotificationStreamTests : IAsyncLifetime
             try
             {
                 while (!cts.Token.IsCancellationRequested)
-                    await conn.WaitAsync(cts.Token);
+                    await listenerConn.WaitAsync(cts.Token);
             }
             catch (OperationCanceledException) { }
         });
 
         // Send first notification
-        await PostgresDb.notify(channel, "first").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "first").RunAsync();
         await Task.WhenAny(firstReceived.Task, Task.Delay(3000));
 
         // Cancel wait first, then unlisten
         await cts.CancelAsync();
         await listenTask;
-        await PostgresDb.unlisten(channel).Run(listenerEnv).RunAsync();
+        await PostgresDb.unlisten(listenerConn, channel).RunAsync();
 
         var countAfterUnlisten = receivedCount;
 
         // Send another notification
-        await PostgresDb.notify(channel, "second").Run(notifierEnv).RunAsync();
+        await PostgresDb.notify(notifierConn, channel, "second").RunAsync();
 
         // Give some time for potential notification
         await Task.Delay(500);

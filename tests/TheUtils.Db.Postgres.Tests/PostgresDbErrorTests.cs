@@ -30,7 +30,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_InvalidTableName_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
@@ -38,6 +38,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
         );
 
         var query = PostgresDb.binaryImport(
+            conn,
             "nonexistent_table (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -50,7 +51,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
             }
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -58,7 +59,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_InvalidColumnName_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
@@ -66,6 +67,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
         );
 
         var query = PostgresDb.binaryImport(
+            conn,
             "users (name, nonexistent_column)",
             rows,
             (writer, row) =>
@@ -75,7 +77,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
             }
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -83,13 +85,14 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_TypeMismatch_ThrowsException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         var rows = Seq(
             (Name: "Test", Email: "test@test.com", Balance: "not_a_number")
         );
 
         var query = PostgresDb.binaryImport(
+            conn,
             "users (name, email, balance)",
             rows,
             (writer, row) =>
@@ -101,7 +104,7 @@ public class PostgresDbErrorTests : IAsyncLifetime
             }
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         // Should throw some kind of exception (either Postgres or InvalidCast)
         await act.Should().ThrowAsync<Exception>();
@@ -112,14 +115,15 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_InvalidSql_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         var query = PostgresDb.rawQuery<string>(
+            conn,
             "SELECT * FROM INVALID SQL SYNTAX",
             reader => reader.GetString(0)
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -127,14 +131,15 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_NonexistentTable_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         var query = PostgresDb.rawQuery<string>(
+            conn,
             "SELECT name FROM nonexistent_table",
             reader => reader.GetString(0)
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -142,11 +147,11 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_InvalidSql_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
-        var query = PostgresDb.rawScalar<long>("SELECT COUNT(*) FROM nonexistent");
+        var query = PostgresDb.rawScalar<long>(conn, "SELECT COUNT(*) FROM nonexistent");
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -156,7 +161,8 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_InvalidPath_HandlesGracefully()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Insert valid document
         await add(new Document
@@ -168,20 +174,20 @@ public class PostgresDbErrorTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         // Query with unusual path - should return None if not found
-        var query = PostgresDb.jsonbPath<string>("documents", "metadata", "$.nonexistent.deep.path");
+        var query = PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.nonexistent.deep.path");
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.IsNone.Should().BeTrue();
     }
 
     [Fact]
     public async Task JsonbPath_InvalidTable_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
-        var query = PostgresDb.jsonbPath<string>("nonexistent_table", "metadata", "$.field");
+        var query = PostgresDb.jsonbPath<string>(conn, "nonexistent_table", "metadata", "$.field");
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -191,38 +197,38 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task WithAdvisoryLock_OperationFails_ReleasesLock()
     {
-        var env1 = _fixture.CreateDbEnvWithConnection();
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var conn1 = _fixture.CreateConnection();
+        var conn2 = _fixture.CreateConnection();
         var lockKey = 999888L;
 
         // Execute operation that fails while holding lock
-        var failingQuery = PostgresDb.withAdvisoryLock(lockKey,
-            fail<int>("Intentional failure")
+        var failingQuery = PostgresDb.withAdvisoryLock(conn1, lockKey,
+            IO.fail<int>("Intentional failure")
         );
 
-        var act = async () => await failingQuery.Run(env1).RunAsync();
+        var act = async () => await failingQuery.RunAsync();
         await act.Should().ThrowAsync<Exception>();
 
         // Lock should be released - another connection can acquire it
-        var acquired = await PostgresDb.tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        var acquired = await PostgresDb.tryAdvisoryLock(conn2, lockKey).RunAsync();
         acquired.Should().BeTrue();
 
         // Cleanup
-        await PostgresDb.advisoryUnlock(lockKey).Run(env2).RunAsync();
+        await PostgresDb.advisoryUnlock(conn2, lockKey).RunAsync();
     }
 
     [Fact]
     public async Task AdvisoryLock_InvalidKey_DoesNotThrow()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         // Negative keys are valid in PostgreSQL
         var lockKey = -12345L;
 
-        var acquired = await PostgresDb.tryAdvisoryLock(lockKey).Run(env).RunAsync();
+        var acquired = await PostgresDb.tryAdvisoryLock(conn, lockKey).RunAsync();
         acquired.Should().BeTrue();
 
-        await PostgresDb.advisoryUnlock(lockKey).Run(env).RunAsync();
+        await PostgresDb.advisoryUnlock(conn, lockKey).RunAsync();
     }
 
     // ==================== LISTEN/NOTIFY Errors ====================
@@ -230,12 +236,12 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task Listen_InvalidChannelName_ThrowsPostgresException()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         // Channel names with special characters should fail
-        var query = PostgresDb.listen("invalid channel; DROP TABLE users;");
+        var query = PostgresDb.listen(conn, "invalid channel; DROP TABLE users;");
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunAsync();
 
         await act.Should().ThrowAsync<PostgresException>();
     }
@@ -243,12 +249,12 @@ public class PostgresDbErrorTests : IAsyncLifetime
     [Fact]
     public async Task Notify_WithSpecialCharactersInPayload_EscapesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         // This should not throw - payload escaping handles quotes
-        var query = PostgresDb.notify("test_channel", "payload with 'quotes' and special chars");
+        var query = PostgresDb.notify(conn, "test_channel", "payload with 'quotes' and special chars");
 
-        await query.Run(env).RunAsync();
+        await query.RunAsync();
 
         // If we got here, the payload was escaped correctly
     }

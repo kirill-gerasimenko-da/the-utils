@@ -20,7 +20,7 @@ public partial class Db
     /// <summary>
     /// Access the current environment.
     /// </summary>
-    public static Db<DbEnv> env => Db.Asks<DbEnv>(identity).As();
+    public static Db<DbEnv> env => Asks(identity).As();
 
     /// <summary>
     /// Access the DbContext from environment.
@@ -37,7 +37,7 @@ public partial class Db
     /// <summary>
     /// Lift an IO operation into Db.
     /// </summary>
-    public static Db<A> liftIO<A>(IO<A> io) => Db.LiftIO(io).As();
+    public static Db<A> liftIO<A>(IO<A> io) => LiftIO(io).As();
 
     /// <summary>
     /// Lift an async operation into Db.
@@ -59,7 +59,7 @@ public partial class Db
     /// <summary>
     /// Fail with an error.
     /// </summary>
-    public static Db<A> fail<A>(Error error) => Db.Fail<A>(error).As();
+    public static Db<A> fail<A>(Error error) => Fail<A>(error).As();
 
     /// <summary>
     /// Fail with a string message.
@@ -97,7 +97,7 @@ public partial class Db
     /// </summary>
     public static Db<bool> any<A>(IQueryable<A> query) =>
         from _ in context
-        from r in liftIO<bool>(io => query.AnyAsync(io.Token))
+        from r in liftIO(io => query.AnyAsync(io.Token))
         select r;
 
     /// <summary>
@@ -113,7 +113,7 @@ public partial class Db
     /// </summary>
     public static Db<int> count<A>(IQueryable<A> query) =>
         from _ in context
-        from r in liftIO<int>(io => query.CountAsync(io.Token))
+        from r in liftIO(io => query.CountAsync(io.Token))
         select r;
 
     /// <summary>
@@ -206,7 +206,7 @@ public partial class Db
     public static Db<Unit> addRange<A>(Seq<A> entities)
         where A : class =>
         from s in set<A>()
-        from _ in liftIO<Unit>(async io =>
+        from _ in liftIO(async io =>
         {
             await s.AddRangeAsync(entities, io.Token);
             return unit;
@@ -225,7 +225,7 @@ public partial class Db
     public static Db<Unit> updateRange<A>(Seq<A> entities)
         where A : class =>
         from s in set<A>()
-        from _ in liftIO<Unit>(() =>
+        from _ in liftIO(() =>
         {
             s.UpdateRange(entities);
             return unit;
@@ -244,7 +244,7 @@ public partial class Db
     public static Db<Unit> deleteRange<A>(Seq<A> entities)
         where A : class =>
         from s in set<A>()
-        from _ in liftIO<Unit>(() =>
+        from _ in liftIO(() =>
         {
             s.RemoveRange(entities);
             return unit;
@@ -256,7 +256,7 @@ public partial class Db
     /// </summary>
     public static Db<int> saveChanges =>
         from c in context
-        from n in liftIO<int>(io => c.SaveChangesAsync(io.Token))
+        from n in liftIO(io => c.SaveChangesAsync(io.Token))
         select n;
 
     // ==================== Raw SQL Execution ====================
@@ -266,7 +266,7 @@ public partial class Db
     /// </summary>
     public static Db<int> execute(FormattableString sql) =>
         from f in facade
-        from n in liftIO<int>(io => f.ExecuteSqlAsync(sql, io.Token))
+        from n in liftIO(io => f.ExecuteSqlAsync(sql, io.Token))
         select n;
 
     /// <summary>
@@ -274,7 +274,7 @@ public partial class Db
     /// </summary>
     public static Db<int> executeRaw(string sql, Seq<object> @params = default) =>
         from f in facade
-        from n in liftIO<int>(io => f.ExecuteSqlRawAsync(sql, @params.ToArray(), io.Token))
+        from n in liftIO(io => f.ExecuteSqlRawAsync(sql, @params.ToArray(), io.Token))
         select n;
 
     // ==================== Transaction Management ====================
@@ -294,7 +294,7 @@ public partial class Db
         Option<IsolationLevel> level = default
     ) =>
         from e in env
-        from t in liftIO<IDbContextTransaction>(io =>
+        from t in liftIO(io =>
             e.Context.Database.BeginTransactionAsync(
                 (level | e.DefaultIsolation).IfNone(IsolationLevel.Unspecified),
                 io.Token
@@ -307,7 +307,7 @@ public partial class Db
     /// </summary>
     public static Db<Unit> commit =>
         from c in context
-        from _ in liftIO<Unit>(async io =>
+        from _ in liftIO(async io =>
         {
             if (c.Database.CurrentTransaction is { } txn)
                 await txn.CommitAsync(io.Token);
@@ -320,7 +320,7 @@ public partial class Db
     /// </summary>
     public static Db<Unit> rollback =>
         from c in context
-        from _ in liftIO<Unit>(async io =>
+        from _ in liftIO(async io =>
         {
             if (c.Database.CurrentTransaction is { } txn)
                 await txn.RollbackAsync(io.Token);
@@ -335,10 +335,10 @@ public partial class Db
     /// </summary>
     public static Db<A> transact<A>(Db<A> operation, Option<IsolationLevel> level = default) =>
         from tx in beginTransaction(level)
-        from operationIO in Db.ToIO(
+        from operationIO in ToIO(
                 from r in operation
-                from _ in liftIO<Unit>(
-                    IO.liftAsync<Unit>(async envIO =>
+                from _ in liftIO(
+                    IO.liftAsync(async envIO =>
                     {
                         await tx.CommitAsync(envIO.Token);
                         return unit;
@@ -351,7 +351,7 @@ public partial class Db
             operationIO.Catch(
                 _ => true,
                 err =>
-                    IO.liftAsync<Unit>(async envIO =>
+                    IO.liftAsync(async envIO =>
                         {
                             await tx.RollbackAsync(envIO.Token);
                             return unit;

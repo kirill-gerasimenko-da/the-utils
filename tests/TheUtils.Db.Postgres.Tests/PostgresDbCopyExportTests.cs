@@ -3,6 +3,7 @@ namespace TheUtils.DbPostgresTests;
 using FluentAssertions;
 using LanguageExt;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using NpgsqlTypes;
 using Xunit;
 using static LanguageExt.Prelude;
@@ -29,7 +30,8 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
     [Fact]
     public async Task BeginBinaryExport_ReturnsExporter()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // First insert some data
         await addRange(Seq(
@@ -39,9 +41,9 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         // Get exporter
-        var query = PostgresDb.beginBinaryExport("COPY users (name, email, balance) TO STDOUT (FORMAT BINARY)");
+        var query = PostgresDb.beginBinaryExport(conn, "COPY users (name, email, balance) TO STDOUT (FORMAT BINARY)");
 
-        var exporter = await query.Run(env).RunAsync();
+        var exporter = await query.RunAsync();
         exporter.Should().NotBeNull();
 
         // Clean up
@@ -51,7 +53,8 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryExport_ReadsData_ReturnsCorrectRows()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Insert test data
         var now = DateTime.UtcNow;
@@ -63,11 +66,11 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         // Export and read data
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var conn2 = _fixture.CreateConnection();
         var query =
             from exporter in PostgresDb.beginBinaryExport(
-                "COPY (SELECT name, email, balance FROM users WHERE email LIKE 'be%' ORDER BY name) TO STDOUT (FORMAT BINARY)")
-            from results in Db.liftIO<List<(string Name, string Email, decimal Balance)>>(async io =>
+                conn2, "COPY (SELECT name, email, balance FROM users WHERE email LIKE 'be%' ORDER BY name) TO STDOUT (FORMAT BINARY)")
+            from results in IO.liftAsync<List<(string Name, string Email, decimal Balance)>>(async io =>
             {
                 var list = new List<(string, string, decimal)>();
                 while (await exporter.StartRowAsync(io.Token) != -1)
@@ -82,7 +85,7 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             })
             select results;
 
-        var result = await query.Run(env2).RunAsync();
+        var result = await query.RunAsync();
 
         result.Count.Should().Be(3);
         result[0].Name.Should().Be("BE1");
@@ -96,13 +99,14 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryExport_EmptyTable_ReturnsZeroRows()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Export from empty table (after reset)
         var query =
             from exporter in PostgresDb.beginBinaryExport(
-                "COPY (SELECT name FROM users WHERE email LIKE 'nonexistent%') TO STDOUT (FORMAT BINARY)")
-            from results in Db.liftIO<int>(async io =>
+                conn, "COPY (SELECT name FROM users WHERE email LIKE 'nonexistent%') TO STDOUT (FORMAT BINARY)")
+            from results in IO.liftAsync<int>(async io =>
             {
                 var count = 0;
                 while (await exporter.StartRowAsync(io.Token) != -1)
@@ -115,14 +119,15 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             })
             select results;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.Should().Be(0);
     }
 
     [Fact]
     public async Task BinaryExport_LargeDataset_HandlesEfficiently()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         // Insert 1000 rows using COPY protocol for speed
@@ -136,6 +141,7 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             )));
 
         await PostgresDb.binaryImport(
+            conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -146,14 +152,14 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         // Export and count
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var conn2 = _fixture.CreateConnection();
         var query =
             from exporter in PostgresDb.beginBinaryExport(
-                "COPY (SELECT name FROM users WHERE email LIKE 'bulk%') TO STDOUT (FORMAT BINARY)")
-            from count in Db.liftIO<int>(async io =>
+                conn2, "COPY (SELECT name FROM users WHERE email LIKE 'bulk%') TO STDOUT (FORMAT BINARY)")
+            from count in IO.liftAsync<int>(async io =>
             {
                 var c = 0;
                 while (await exporter.StartRowAsync(io.Token) != -1)
@@ -166,7 +172,7 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             })
             select count;
 
-        var result = await query.Run(env2).RunAsync();
+        var result = await query.RunAsync();
         result.Should().Be(1000);
     }
 
@@ -175,18 +181,19 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryExport_WithNullableColumns_HandlesNulls()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Insert user with default (null-like) values
         await add(new User { Name = "NullTest", Email = "nulltest@test.com", Balance = 0 })
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var conn2 = _fixture.CreateConnection();
         var query =
             from exporter in PostgresDb.beginBinaryExport(
-                "COPY (SELECT name, balance FROM users WHERE email = 'nulltest@test.com') TO STDOUT (FORMAT BINARY)")
-            from results in Db.liftIO<(string Name, decimal Balance)>(async io =>
+                conn2, "COPY (SELECT name, balance FROM users WHERE email = 'nulltest@test.com') TO STDOUT (FORMAT BINARY)")
+            from results in IO.liftAsync<(string Name, decimal Balance)>(async io =>
             {
                 await exporter.StartRowAsync(io.Token);
                 var name = await exporter.ReadAsync<string>(io.Token);
@@ -196,7 +203,7 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             })
             select results;
 
-        var result = await query.Run(env2).RunAsync();
+        var result = await query.RunAsync();
         result.Name.Should().Be("NullTest");
         result.Balance.Should().Be(0);
     }
@@ -204,7 +211,8 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryExport_WithBooleanColumn_ReadsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "Active", Email = "active@test.com", IsActive = true },
@@ -212,11 +220,11 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
         )).Bind(_ => saveChanges.Map(_ => unit))
           .Run(env).RunAsync();
 
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var conn2 = _fixture.CreateConnection();
         var query =
             from exporter in PostgresDb.beginBinaryExport(
-                "COPY (SELECT name, is_active FROM users WHERE email IN ('active@test.com', 'inactive@test.com') ORDER BY name) TO STDOUT (FORMAT BINARY)")
-            from results in Db.liftIO<List<(string Name, bool IsActive)>>(async io =>
+                conn2, "COPY (SELECT name, is_active FROM users WHERE email IN ('active@test.com', 'inactive@test.com') ORDER BY name) TO STDOUT (FORMAT BINARY)")
+            from results in IO.liftAsync<List<(string Name, bool IsActive)>>(async io =>
             {
                 var list = new List<(string, bool)>();
                 while (await exporter.StartRowAsync(io.Token) != -1)
@@ -230,7 +238,7 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             })
             select results;
 
-        var result = await query.Run(env2).RunAsync();
+        var result = await query.RunAsync();
         result.Count.Should().Be(2);
         result.First(r => r.Name == "Active").IsActive.Should().BeTrue();
         result.First(r => r.Name == "Inactive").IsActive.Should().BeFalse();
@@ -239,18 +247,19 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryExport_WithTimestamp_ReadsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var specificTime = new DateTime(2024, 6, 15, 10, 30, 0, DateTimeKind.Utc);
 
         await add(new User { Name = "TimeTest", Email = "timetest@test.com", CreatedAt = specificTime })
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var conn2 = _fixture.CreateConnection();
         var query =
             from exporter in PostgresDb.beginBinaryExport(
-                "COPY (SELECT name, created_at FROM users WHERE email = 'timetest@test.com') TO STDOUT (FORMAT BINARY)")
-            from results in Db.liftIO<(string Name, DateTime CreatedAt)>(async io =>
+                conn2, "COPY (SELECT name, created_at FROM users WHERE email = 'timetest@test.com') TO STDOUT (FORMAT BINARY)")
+            from results in IO.liftAsync<(string Name, DateTime CreatedAt)>(async io =>
             {
                 await exporter.StartRowAsync(io.Token);
                 var name = await exporter.ReadAsync<string>(io.Token);
@@ -260,7 +269,7 @@ public class PostgresDbCopyExportTests : IAsyncLifetime
             })
             select results;
 
-        var result = await query.Run(env2).RunAsync();
+        var result = await query.RunAsync();
         result.Name.Should().Be("TimeTest");
         result.CreatedAt.Should().BeCloseTo(specificTime, TimeSpan.FromSeconds(1));
     }

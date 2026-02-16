@@ -34,34 +34,8 @@ public class DbTraitExtensionsTests : IAsyncLifetime
 
         env.Should().NotBeNull();
         env.Context.Should().Be(context);
-        env.RawConnection.IsNone.Should().BeTrue();
         env.DefaultIsolation.IsNone.Should().BeTrue();
         env.CommandTimeout.IsNone.Should().BeTrue();
-    }
-
-    [Fact]
-    public void DbEnv_FromConnection_CreatesEnvWithConnection()
-    {
-        var context = _fixture.CreateDbContext();
-        var connection = context.Database.GetDbConnection();
-        var env = DbEnv.FromConnection(context, connection);
-
-        env.Should().NotBeNull();
-        env.Context.Should().Be(context);
-        env.RawConnection.IsSome.Should().BeTrue();
-        env.Connection.Should().Be(connection);
-    }
-
-    [Fact]
-    public void DbEnv_Connection_FallsBackToContextConnection()
-    {
-        var context = _fixture.CreateDbContext();
-        var env = DbEnv.FromContext(context);
-
-        // When no explicit connection, should fall back to context's connection
-        env.RawConnection.IsNone.Should().BeTrue();
-        env.Connection.Should().NotBeNull();
-        env.Connection.Should().Be(context.Database.GetDbConnection());
     }
 
     // ==================== Ignore Extension ====================

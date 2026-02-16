@@ -55,16 +55,6 @@ public class PostgreSqlFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Create a DbEnv with a dedicated connection.
-    /// </summary>
-    public DbEnv CreateDbEnvWithConnection()
-    {
-        var context = CreateDbContext();
-        var connection = new NpgsqlConnection(ConnectionString);
-        return new DbEnv(context, connection);
-    }
-
-    /// <summary>
     /// Reset the database to a clean state (truncate all tables).
     /// </summary>
     public async Task ResetDatabaseAsync()

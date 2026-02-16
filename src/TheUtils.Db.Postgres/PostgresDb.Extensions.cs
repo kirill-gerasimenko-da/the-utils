@@ -23,16 +23,21 @@ public static class PostgresDbExtensions
             channel.Writer.TryWrite(e);
 
         conn.Notification += OnNotification;
+        Task? waitTask = null;
 
         try
         {
-            // Keep connection alive to receive notifications
-            var waitTask = Task.Run(
+            waitTask = Task.Run(
                 async () =>
                 {
-                    while (!ct.IsCancellationRequested)
+                    try
                     {
-                        await conn.WaitAsync(ct);
+                        while (!ct.IsCancellationRequested)
+                            await conn.WaitAsync(ct);
+                    }
+                    finally
+                    {
+                        channel.Writer.TryComplete();
                     }
                 },
                 ct
@@ -43,6 +48,12 @@ public static class PostgresDbExtensions
         }
         finally
         {
+            if (waitTask != null)
+            {
+                try { await waitTask; }
+                catch (OperationCanceledException) { }
+            }
+
             conn.Notification -= OnNotification;
         }
     }

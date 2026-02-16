@@ -3,6 +3,7 @@ namespace TheUtils.DbPostgresTests;
 using FluentAssertions;
 using LanguageExt;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using NpgsqlTypes;
 using Xunit;
 using static LanguageExt.Prelude;
@@ -29,12 +30,12 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BeginBinaryImport_ReturnsImporter()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
-        var query = PostgresDb.beginBinaryImport(
+        var query = PostgresDb.beginBinaryImport(conn,
             "COPY users (name, email, balance, created_at, is_active) FROM STDIN (FORMAT BINARY)");
 
-        var importer = await query.Run(env).RunAsync();
+        var importer = await query.RunAsync();
         importer.Should().NotBeNull();
 
         // Clean up
@@ -44,11 +45,11 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_EmptySeq_ImportsZeroRows()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         var rows = Seq<(string Name, string Email, decimal Balance, DateTime CreatedAt, bool IsActive)>();
 
-        var count = await PostgresDb.binaryImport(
+        var count = await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -59,7 +60,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         count.Should().Be(0UL);
 
@@ -72,14 +73,14 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_SingleRow_InsertsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
             (Name: "SingleImport", Email: "singleimport@test.com", Balance: 123.45m, CreatedAt: now, IsActive: true)
         );
 
-        var count = await PostgresDb.binaryImport(
+        var count = await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -90,7 +91,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         count.Should().Be(1UL);
 
@@ -107,7 +108,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_LargeDataset_HandlesEfficiently()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
         var rowCount = 5000;
 
@@ -122,7 +123,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
 
-        var count = await PostgresDb.binaryImport(
+        var count = await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -133,7 +134,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         sw.Stop();
 
@@ -151,7 +152,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_AllColumnTypes_HandlesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var specificTime = new DateTime(2024, 6, 15, 10, 30, 45, DateTimeKind.Utc);
 
         var rows = Seq(
@@ -160,7 +161,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
             (Name: "TypeTest3", Email: "typetest3@test.com", Balance: -100.50m, CreatedAt: specificTime, IsActive: true)
         );
 
-        var count = await PostgresDb.binaryImport(
+        var count = await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -171,7 +172,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         count.Should().Be(3UL);
 
@@ -193,7 +194,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_WithSpecialCharacters_HandlesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
@@ -202,7 +203,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
             (Name: "Test\nNewline\tTab", Email: "whitespace@test.com", Balance: 300m, CreatedAt: now, IsActive: true)
         );
 
-        var count = await PostgresDb.binaryImport(
+        var count = await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -213,7 +214,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         count.Should().Be(3UL);
 
@@ -235,7 +236,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_InTransaction_CommitsOnSuccess()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
@@ -245,7 +246,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
 
         // Note: COPY operations in Npgsql manage their own connection state
         // This tests that they work correctly in the overall workflow
-        var count = await PostgresDb.binaryImport(
+        var count = await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -256,7 +257,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         count.Should().Be(2UL);
 
@@ -274,12 +275,12 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
         var now = DateTime.UtcNow;
 
         // First import
-        var env1 = _fixture.CreateDbEnvWithConnection();
+        var conn1 = _fixture.CreateConnection();
         var rows1 = Seq(
             (Name: "Seq1", Email: "seq1@test.com", Balance: 100m, CreatedAt: now, IsActive: true)
         );
 
-        await PostgresDb.binaryImport(
+        await PostgresDb.binaryImport(conn1,
             "users (name, email, balance, created_at, is_active)",
             rows1,
             (writer, row) =>
@@ -290,15 +291,15 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env1).RunAsync();
+        ).RunAsync();
 
-        // Second import with new env
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        // Second import
+        var conn2 = _fixture.CreateConnection();
         var rows2 = Seq(
             (Name: "Seq2", Email: "seq2@test.com", Balance: 200m, CreatedAt: now, IsActive: true)
         );
 
-        await PostgresDb.binaryImport(
+        await PostgresDb.binaryImport(conn2,
             "users (name, email, balance, created_at, is_active)",
             rows2,
             (writer, row) =>
@@ -309,7 +310,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env2).RunAsync();
+        ).RunAsync();
 
         // Verify both imports succeeded
         await using var verifyContext = _fixture.CreateDbContext();
@@ -322,14 +323,14 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_WithZeroBalance_HandlesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
             (Name: "ZeroBalance", Email: "zerobalance@test.com", Balance: 0m, CreatedAt: now, IsActive: true)
         );
 
-        await PostgresDb.binaryImport(
+        await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -340,7 +341,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleAsync(u => u.Email == "zerobalance@test.com");
@@ -350,14 +351,14 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_WithEmptyString_HandlesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var rows = Seq(
             (Name: "", Email: "emptyname@test.com", Balance: 100m, CreatedAt: now, IsActive: true)
         );
 
-        await PostgresDb.binaryImport(
+        await PostgresDb.binaryImport(conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -368,7 +369,7 @@ public class PostgresDbCopyImportTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleAsync(u => u.Email == "emptyname@test.com");

@@ -139,16 +139,6 @@ public class DbMonadTests : IAsyncLifetime
     // ==================== DbEnv Option Defaults ====================
 
     [Fact]
-    public void DbEnv_DefaultRawConnection_UsesContextConnection()
-    {
-        var context = _fixture.CreateDbContext();
-        var env = new DbEnv(context);
-
-        env.RawConnection.IsNone.Should().BeTrue();
-        env.Connection.Should().NotBeNull();
-    }
-
-    [Fact]
     public void DbEnv_DefaultCommandTimeout_IsNone()
     {
         var context = _fixture.CreateDbContext();

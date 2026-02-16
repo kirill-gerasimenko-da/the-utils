@@ -30,7 +30,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_MultipleParameters_BindsInOrder()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Setup
         await addRange(Seq(
@@ -44,10 +45,11 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
         var isActive = new NpgsqlParameter("isActive", NpgsqlDbType.Boolean) { Value = true };
 
         var results = await PostgresDb.rawQuery<(string Name, decimal Balance)>(
+            conn,
             "SELECT name, balance FROM users WHERE balance > @minBalance AND is_active = @isActive ORDER BY name",
             reader => (reader.GetString(0), reader.GetDecimal(1)),
             minBalance, isActive
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         results.Count.Should().Be(1); // Only Multi3 matches (balance > 150 AND active)
         results[0].Name.Should().Be("Multi3");
@@ -57,7 +59,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_PositionalParameters_BindsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new User { Name = "Positional", Email = "positional@test.com", Balance = 500 })
             .Bind(_ => saveChanges.Map(_ => unit))
@@ -67,10 +70,11 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
         var param2 = new NpgsqlParameter { Value = 400m };
 
         var results = await PostgresDb.rawQuery<string>(
+            conn,
             "SELECT name FROM users WHERE email = $1 AND balance > $2",
             reader => reader.GetString(0),
             param1, param2
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         results.Count.Should().Be(1);
         results[0].Should().Be("Positional");
@@ -81,7 +85,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_NullParameter_HandlesCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "HasName", Email = "hasname@test.com" },
@@ -93,10 +98,11 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
         var param = new NpgsqlParameter("name", NpgsqlDbType.Varchar) { Value = "" };
 
         var results = await PostgresDb.rawQuery<string>(
+            conn,
             "SELECT email FROM users WHERE name != @name",
             reader => reader.GetString(0),
             param
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         results.Count.Should().Be(1);
         results[0].Should().Be("hasname@test.com");
@@ -105,12 +111,13 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_NullResult_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         // Query that returns NULL
         var result = await PostgresDb.rawScalar<string>(
+            conn,
             "SELECT NULL::text"
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         result.IsNone.Should().BeTrue();
     }
@@ -120,7 +127,7 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_LargeResultSet_ReturnsAll()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
         var rowCount = 500;
         var now = DateTime.UtcNow;
 
@@ -135,6 +142,7 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
             )));
 
         await PostgresDb.binaryImport(
+            conn,
             "users (name, email, balance, created_at, is_active)",
             rows,
             (writer, row) =>
@@ -145,14 +153,15 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
                 writer.Write(row.CreatedAt, NpgsqlDbType.TimestampTz);
                 writer.Write(row.IsActive, NpgsqlDbType.Boolean);
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
-        // Query all
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        // Query all with a fresh connection
+        var conn2 = _fixture.CreateConnection();
         var results = await PostgresDb.rawQuery<int>(
+            conn2,
             "SELECT id FROM users WHERE email LIKE 'large%'",
             reader => reader.GetInt32(0)
-        ).Run(env2).RunAsync();
+        ).RunAsync();
 
         results.Count.Should().Be(rowCount);
     }
@@ -162,7 +171,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_WithSum_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "Sum1", Email = "sum1@test.com", Balance = 100 },
@@ -172,8 +182,9 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         var result = await PostgresDb.rawScalar<decimal>(
+            conn,
             "SELECT SUM(balance) FROM users WHERE email LIKE 'sum%'"
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(600));
@@ -182,7 +193,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_WithAvg_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "Avg1", Email = "avg1@test.com", Balance = 100 },
@@ -191,8 +203,9 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         var result = await PostgresDb.rawScalar<decimal>(
+            conn,
             "SELECT AVG(balance) FROM users WHERE email LIKE 'avg%'"
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(150));
@@ -201,7 +214,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_WithCount_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "Cnt1", Email = "cnt1@test.com" },
@@ -211,8 +225,9 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         var result = await PostgresDb.rawScalar<long>(
+            conn,
             "SELECT COUNT(*) FROM users WHERE email LIKE 'cnt%'"
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(3));
@@ -221,7 +236,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_WithMax_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "Max1", Email = "max1@test.com", Balance = 100 },
@@ -231,8 +247,9 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         var result = await PostgresDb.rawScalar<decimal>(
+            conn,
             "SELECT MAX(balance) FROM users WHERE email LIKE 'max%'"
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be(500));
@@ -244,13 +261,16 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     public async Task RawQuery_WithTransaction_SeesUncommittedData()
     {
         var env = _fixture.CreateDbEnv();
+        // Use the context's own connection so the raw query participates in the same transaction
+        var conn = (NpgsqlConnection)env.Context.Database.GetDbConnection();
 
         var query = transact(
             from _ in add(new User { Name = "TxQuery", Email = "txquery@test.com", Balance = 999 })
             from __ in saveChanges
-            from balance in PostgresDb.rawScalar<decimal>(
+            from balance in liftIO(PostgresDb.rawScalar<decimal>(
+                conn,
                 "SELECT balance FROM users WHERE email = 'txquery@test.com'"
-            )
+            ))
             select balance
         );
 
@@ -265,7 +285,8 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_WithComplexMapper_MapsCorrectly()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         await add(new User
@@ -280,6 +301,7 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
             .Run(env).RunAsync();
 
         var results = await PostgresDb.rawQuery<User>(
+            conn,
             "SELECT id, name, email, balance, created_at, is_active FROM users WHERE email = 'complex@test.com'",
             reader => new User
             {
@@ -290,7 +312,7 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
                 CreatedAt = reader.GetDateTime(4),
                 IsActive = reader.GetBoolean(5)
             }
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         results.Count.Should().Be(1);
         var user = results[0];
@@ -305,12 +327,13 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_NoResults_ReturnsEmptySeq()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         var results = await PostgresDb.rawQuery<string>(
+            conn,
             "SELECT name FROM users WHERE email = 'nonexistent@test.com'",
             reader => reader.GetString(0)
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         results.IsEmpty.Should().BeTrue();
     }
@@ -318,11 +341,12 @@ public class PostgresDbRawQueryAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_NoRows_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var conn = _fixture.CreateConnection();
 
         var result = await PostgresDb.rawScalar<decimal>(
+            conn,
             "SELECT balance FROM users WHERE email = 'nonexistent@test.com'"
-        ).Run(env).RunAsync();
+        ).RunAsync();
 
         result.IsNone.Should().BeTrue();
     }

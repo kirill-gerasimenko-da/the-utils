@@ -3,6 +3,7 @@ namespace TheUtils.DbPostgresTests;
 using FluentAssertions;
 using LanguageExt;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using NpgsqlTypes;
 using Xunit;
 using static LanguageExt.Prelude;
@@ -27,52 +28,55 @@ public class PostgresDbAdvisoryLockTests : IAsyncLifetime
     [Fact]
     public async Task TryAdvisoryLock_AcquiresLock_ReturnsTrue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var lockKey = 12345L;
 
         var query =
-            from acquired in PostgresDb.tryAdvisoryLock(lockKey)
-            from _ in PostgresDb.advisoryUnlock(lockKey)
+            from acquired in PostgresDb.tryAdvisoryLock(conn, lockKey)
+            from _ in PostgresDb.advisoryUnlock(conn, lockKey)
             select acquired;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task TryAdvisoryLock_WhenLocked_ReturnsFalse()
     {
-        var env1 = _fixture.CreateDbEnvWithConnection();
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn1 = _fixture.CreateConnection();
+        var conn2 = _fixture.CreateConnection();
         var lockKey = 54321L;
 
         // First connection acquires lock
-        var acquired1 = await PostgresDb.tryAdvisoryLock(lockKey).Run(env1).RunAsync();
+        var acquired1 = await PostgresDb.tryAdvisoryLock(conn1, lockKey).RunAsync();
         acquired1.Should().BeTrue();
 
         // Second connection tries to acquire same lock - should fail
-        var acquired2 = await PostgresDb.tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        var acquired2 = await PostgresDb.tryAdvisoryLock(conn2, lockKey).RunAsync();
         acquired2.Should().BeFalse();
 
         // Release lock from first connection
-        await PostgresDb.advisoryUnlock(lockKey).Run(env1).RunAsync();
+        await PostgresDb.advisoryUnlock(conn1, lockKey).RunAsync();
 
         // Now second connection can acquire
-        var acquired3 = await PostgresDb.tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        var acquired3 = await PostgresDb.tryAdvisoryLock(conn2, lockKey).RunAsync();
         acquired3.Should().BeTrue();
 
         // Cleanup
-        await PostgresDb.advisoryUnlock(lockKey).Run(env2).RunAsync();
+        await PostgresDb.advisoryUnlock(conn2, lockKey).RunAsync();
     }
 
     [Fact]
     public async Task WithAdvisoryLock_ExecutesWithLock()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var lockKey = 99999L;
         var executed = false;
 
-        var query = PostgresDb.withAdvisoryLock(lockKey,
+        var query = PostgresDb.withAdvisoryLock(conn, lockKey,
             liftIO(() =>
             {
                 executed = true;
@@ -88,24 +92,25 @@ public class PostgresDbAdvisoryLockTests : IAsyncLifetime
     [Fact]
     public async Task WithAdvisoryLock_ReleasesOnError()
     {
-        var env1 = _fixture.CreateDbEnvWithConnection();
-        var env2 = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn1 = _fixture.CreateConnection();
+        var conn2 = _fixture.CreateConnection();
         var lockKey = 88888L;
 
         // First connection acquires lock and fails
-        var query = PostgresDb.withAdvisoryLock(lockKey,
+        var query = PostgresDb.withAdvisoryLock(conn1, lockKey,
             fail<int>("Intentional failure")
         );
 
-        var act = async () => await query.Run(env1).RunAsync();
+        var act = async () => await query.Run(env).RunAsync();
         await act.Should().ThrowAsync<Exception>();
 
         // Second connection should be able to acquire the lock (it was released)
-        var acquired = await PostgresDb.tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        var acquired = await PostgresDb.tryAdvisoryLock(conn2, lockKey).RunAsync();
         acquired.Should().BeTrue();
 
         // Cleanup
-        await PostgresDb.advisoryUnlock(lockKey).Run(env2).RunAsync();
+        await PostgresDb.advisoryUnlock(conn2, lockKey).RunAsync();
     }
 }
 
@@ -128,7 +133,8 @@ public class PostgresDbRawQueryTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_WithMapper_ReturnsResults()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "RQ1", Email = "rq1@test.com", Balance = 100 },
@@ -137,11 +143,12 @@ public class PostgresDbRawQueryTests : IAsyncLifetime
           .Run(env).RunAsync();
 
         var query = PostgresDb.rawQuery<(string Name, decimal Balance)>(
+            conn,
             "SELECT name, balance FROM users WHERE email LIKE 'rq%' ORDER BY name",
             reader => (reader.GetString(0), reader.GetDecimal(1))
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.Count.Should().Be(2);
         result[0].Name.Should().Be("RQ1");
         result[0].Balance.Should().Be(100);
@@ -152,26 +159,29 @@ public class PostgresDbRawQueryTests : IAsyncLifetime
     [Fact]
     public async Task RawQuery_WithParams_ReturnsResults()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new User { Name = "RQP", Email = "rqp@test.com", Balance = 500 })
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
         var query = PostgresDb.rawQuery<string>(
+            conn,
             "SELECT name FROM users WHERE balance > @minBalance",
             reader => reader.GetString(0),
-            new Npgsql.NpgsqlParameter("minBalance", 400m)
+            new NpgsqlParameter("minBalance", 400m)
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.ToList().Should().Contain("RQP");
     }
 
     [Fact]
     public async Task RawScalar_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await addRange(Seq(
             new User { Name = "RS1", Email = "rs1@test.com" },
@@ -179,9 +189,9 @@ public class PostgresDbRawQueryTests : IAsyncLifetime
         )).Bind(_ => saveChanges.Map(_ => unit))
           .Run(env).RunAsync();
 
-        var query = PostgresDb.rawScalar<long>("SELECT COUNT(*) FROM users WHERE email LIKE 'rs%'");
+        var query = PostgresDb.rawScalar<long>(conn, "SELECT COUNT(*) FROM users WHERE email LIKE 'rs%'");
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.IsSome.Should().BeTrue();
         result.IfSome(c => c.Should().Be(2));
     }
@@ -189,11 +199,12 @@ public class PostgresDbRawQueryTests : IAsyncLifetime
     [Fact]
     public async Task RawScalar_ReturnsNone_WhenNull()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
-        var query = PostgresDb.rawScalar<string>("SELECT NULL::text");
+        var query = PostgresDb.rawScalar<string>(conn, "SELECT NULL::text");
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.IsNone.Should().BeTrue();
     }
 }
@@ -217,7 +228,8 @@ public class PostgresDbCopyTests : IAsyncLifetime
     [Fact]
     public async Task BinaryImport_BulkInsertsData()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var now = DateTime.UtcNow;
 
         var users = Seq(
@@ -227,6 +239,7 @@ public class PostgresDbCopyTests : IAsyncLifetime
         );
 
         var query = PostgresDb.binaryImport(
+            conn,
             "users (name, email, balance, created_at, is_active)",
             users,
             (writer, user) =>
@@ -239,7 +252,7 @@ public class PostgresDbCopyTests : IAsyncLifetime
             }
         );
 
-        var imported = await query.Run(env).RunAsync();
+        var imported = await query.RunAsync();
         imported.Should().Be(3UL);
 
         // Verify
@@ -268,23 +281,25 @@ public class PostgresDbListenNotifyTests : IAsyncLifetime
     [Fact]
     public async Task Listen_SubscribesToChannel()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var channel = "test_listen";
 
         // Just verify listen/unlisten don't throw
-        await PostgresDb.listen(channel).Run(env).RunAsync();
-        await PostgresDb.unlisten(channel).Run(env).RunAsync();
+        await PostgresDb.listen(conn, channel).RunAsync();
+        await PostgresDb.unlisten(conn, channel).RunAsync();
     }
 
     [Fact]
     public async Task Notify_SendsNotification()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var channel = "test_notify";
         var payload = "test_payload";
 
         // Just verify notify doesn't throw
-        await PostgresDb.notify(channel, payload).Run(env).RunAsync();
+        await PostgresDb.notify(conn, channel, payload).RunAsync();
     }
 }
 
@@ -307,7 +322,8 @@ public class PostgresDbJsonbTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         // Insert a document with JSONB metadata
         await add(new Document
@@ -318,9 +334,9 @@ public class PostgresDbJsonbTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var query = PostgresDb.jsonbPath<string>("documents", "metadata", "$.author");
+        var query = PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.author");
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be("Alice"));
     }
@@ -328,7 +344,8 @@ public class PostgresDbJsonbTests : IAsyncLifetime
     [Fact]
     public async Task JsonbPath_ReturnsNone_WhenNotFound()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -338,16 +355,17 @@ public class PostgresDbJsonbTests : IAsyncLifetime
             .Bind(_ => saveChanges.Map(_ => unit))
             .Run(env).RunAsync();
 
-        var query = PostgresDb.jsonbPath<string>("documents", "metadata", "$.nonexistent");
+        var query = PostgresDb.jsonbPath<string>(conn, "documents", "metadata", "$.nonexistent");
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.IsNone.Should().BeTrue();
     }
 
     [Fact]
     public async Task JsonbPath_WithVars_ReturnsValue()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
 
         await add(new Document
             {
@@ -359,13 +377,14 @@ public class PostgresDbJsonbTests : IAsyncLifetime
 
         // Query with variable - find item by id
         var query = PostgresDb.jsonbPath<string>(
+            conn,
             "documents",
             "metadata",
             "$.items[*] ? (@.id == $targetId).name",
             """{"targetId": 2}"""
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunAsync();
         result.IsSome.Should().BeTrue();
         result.IfSome(v => v.Should().Be("second"));
     }
@@ -390,11 +409,12 @@ public class PostgresDbNestedResourceTests : IAsyncLifetime
     [Fact]
     public async Task TransactionWithAdvisoryLock_BothReleaseOnSuccess()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var lockKey = 111111L;
 
         var query = transact(
-            from _ in PostgresDb.withAdvisoryLock(lockKey,
+            from _ in PostgresDb.withAdvisoryLock(conn, lockKey,
                 from __ in add(new User { Name = "TxLock", Email = "txlock@test.com" })
                 from ___ in saveChanges
                 select unit
@@ -410,20 +430,21 @@ public class PostgresDbNestedResourceTests : IAsyncLifetime
         user.Should().NotBeNull();
 
         // Verify lock was released (another connection can acquire it)
-        var env2 = _fixture.CreateDbEnvWithConnection();
-        var canAcquire = await PostgresDb.tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        var conn2 = _fixture.CreateConnection();
+        var canAcquire = await PostgresDb.tryAdvisoryLock(conn2, lockKey).RunAsync();
         canAcquire.Should().BeTrue();
-        await PostgresDb.advisoryUnlock(lockKey).Run(env2).RunAsync();
+        await PostgresDb.advisoryUnlock(conn2, lockKey).RunAsync();
     }
 
     [Fact]
     public async Task TransactionWithAdvisoryLock_BothReleaseOnFailure()
     {
-        var env = _fixture.CreateDbEnvWithConnection();
+        var env = _fixture.CreateDbEnv();
+        var conn = _fixture.CreateConnection();
         var lockKey = 222222L;
 
         var query = transact(
-            from _ in PostgresDb.withAdvisoryLock(lockKey,
+            from _ in PostgresDb.withAdvisoryLock(conn, lockKey,
                 from __ in add(new User { Name = "TxLockFail", Email = "txlockfail@test.com" })
                 from ___ in saveChanges
                 from ____ in fail<Unit>("Failure inside lock inside transaction")
@@ -441,9 +462,9 @@ public class PostgresDbNestedResourceTests : IAsyncLifetime
         user.Should().BeNull();
 
         // Lock should be released
-        var env2 = _fixture.CreateDbEnvWithConnection();
-        var canAcquire = await PostgresDb.tryAdvisoryLock(lockKey).Run(env2).RunAsync();
+        var conn2 = _fixture.CreateConnection();
+        var canAcquire = await PostgresDb.tryAdvisoryLock(conn2, lockKey).RunAsync();
         canAcquire.Should().BeTrue();
-        await PostgresDb.advisoryUnlock(lockKey).Run(env2).RunAsync();
+        await PostgresDb.advisoryUnlock(conn2, lockKey).RunAsync();
     }
 }

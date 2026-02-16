@@ -8,84 +8,69 @@ using NpgsqlTypes;
 using static LanguageExt.Prelude;
 
 /// <summary>
-/// Postgres-specific extensions for the Db monad.
+/// Postgres-specific IO operations.
 /// Provides COPY protocol, LISTEN/NOTIFY, advisory locks, raw queries, and JSONB support.
+/// All methods return IO&lt;A&gt; — use Db.liftIO to compose with Db monad chains.
 /// </summary>
 public static class PostgresDb
 {
-    // ==================== Helper ====================
+    // ==================== Connection Helpers ====================
 
-    /// <summary>
-    /// Gets NpgsqlConnection from DbEnv, throwing if not available.
-    /// </summary>
-    private static NpgsqlConnection GetNpgsqlConnection(DbEnv env) =>
-        env.Connection as NpgsqlConnection
-        ?? throw new InvalidOperationException(
-            "Postgres extensions require an NpgsqlConnection. "
-                + "Ensure DbContext is configured with Npgsql provider."
-        );
+    private static IO<Unit> ensureOpen(NpgsqlConnection conn) =>
+        IO.liftAsync(async env =>
+        {
+            if (conn.State != ConnectionState.Open)
+                await conn.OpenAsync(env.Token);
+            return unit;
+        });
 
     // ==================== COPY Protocol ====================
 
     /// <summary>
     /// Begin a binary COPY import for bulk data loading.
     /// </summary>
-    public static Db<NpgsqlBinaryImporter> beginBinaryImport(string copyCommand) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
-        {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
-            return unit;
-        })
-        from importer in Db.liftIO<NpgsqlBinaryImporter>(io =>
-            conn.BeginBinaryImportAsync(copyCommand, io.Token)
-        )
+    public static IO<NpgsqlBinaryImporter> beginBinaryImport(
+        NpgsqlConnection conn,
+        string copyCommand
+    ) =>
+        from _ in ensureOpen(conn)
+        from importer in IO.liftAsync(env => conn.BeginBinaryImportAsync(copyCommand, env.Token))
         select importer;
 
     /// <summary>
     /// Bulk import rows using COPY protocol.
     /// </summary>
-    public static Db<ulong> binaryImport<A>(
+    public static IO<ulong> binaryImport<A>(
+        NpgsqlConnection conn,
         string table,
         Seq<A> rows,
         Action<NpgsqlBinaryImporter, A> writeRow
     ) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from count in Db.liftIO<ulong>(async io =>
+        IO.liftAsync(async env =>
         {
             if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
+                await conn.OpenAsync(env.Token);
             await using var writer = await conn.BeginBinaryImportAsync(
                 $"COPY {table} FROM STDIN (FORMAT BINARY)",
-                io.Token
+                env.Token
             );
             foreach (var row in rows)
             {
-                await writer.StartRowAsync(io.Token);
+                await writer.StartRowAsync(env.Token);
                 writeRow(writer, row);
             }
-            return await writer.CompleteAsync(io.Token);
-        })
-        select count;
+            return await writer.CompleteAsync(env.Token);
+        });
 
     /// <summary>
     /// Begin a binary COPY export for bulk data reading.
     /// </summary>
-    public static Db<NpgsqlBinaryExporter> beginBinaryExport(string copyCommand) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
-        {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
-            return unit;
-        })
-        from exporter in Db.liftIO<NpgsqlBinaryExporter>(io =>
-            conn.BeginBinaryExportAsync(copyCommand, io.Token)
-        )
+    public static IO<NpgsqlBinaryExporter> beginBinaryExport(
+        NpgsqlConnection conn,
+        string copyCommand
+    ) =>
+        from _ in ensureOpen(conn)
+        from exporter in IO.liftAsync(env => conn.BeginBinaryExportAsync(copyCommand, env.Token))
         select exporter;
 
     // ==================== LISTEN/NOTIFY ====================
@@ -93,16 +78,13 @@ public static class PostgresDb
     /// <summary>
     /// Start listening on a notification channel.
     /// </summary>
-    public static Db<Unit> listen(string channel) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
+    public static IO<Unit> listen(NpgsqlConnection conn, string channel) =>
+        from _ in ensureOpen(conn)
+        from __ in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = $"LISTEN {channel}";
-            await cmd.ExecuteNonQueryAsync(io.Token);
+            await cmd.ExecuteNonQueryAsync(env.Token);
             return unit;
         })
         select unit;
@@ -110,33 +92,27 @@ public static class PostgresDb
     /// <summary>
     /// Stop listening on a notification channel.
     /// </summary>
-    public static Db<Unit> unlisten(string channel) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
+    public static IO<Unit> unlisten(NpgsqlConnection conn, string channel) =>
+        IO.liftAsync(async env =>
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = $"UNLISTEN {channel}";
-            await cmd.ExecuteNonQueryAsync(io.Token);
+            await cmd.ExecuteNonQueryAsync(env.Token);
             return unit;
-        })
-        select unit;
+        });
 
     /// <summary>
     /// Send a notification on a channel.
     /// </summary>
-    public static Db<Unit> notify(string channel, string payload = "") =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
+    public static IO<Unit> notify(NpgsqlConnection conn, string channel, string payload = "") =>
+        from _ in ensureOpen(conn)
+        from __ in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = string.IsNullOrEmpty(payload)
                 ? $"NOTIFY {channel}"
                 : $"NOTIFY {channel}, '{payload.Replace("'", "''")}'";
-            await cmd.ExecuteNonQueryAsync(io.Token);
+            await cmd.ExecuteNonQueryAsync(env.Token);
             return unit;
         })
         select unit;
@@ -144,42 +120,35 @@ public static class PostgresDb
     /// <summary>
     /// Get an async enumerable of notifications.
     /// </summary>
-    public static Db<IAsyncEnumerable<NpgsqlNotificationEventArgs>> notifications =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        select conn.ToNotificationStream();
+    public static IO<IAsyncEnumerable<NpgsqlNotificationEventArgs>> notifications(
+        NpgsqlConnection conn
+    ) => IO.pure(conn.ToNotificationStream());
 
     // ==================== Advisory Locks ====================
 
     /// <summary>
     /// Try to acquire an advisory lock (non-blocking).
     /// </summary>
-    public static Db<bool> tryAdvisoryLock(long key) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from result in Db.liftIO<bool>(async io =>
+    public static IO<bool> tryAdvisoryLock(NpgsqlConnection conn, long key) =>
+        from _ in ensureOpen(conn)
+        from result in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = $"SELECT pg_try_advisory_lock({key})";
-            return (bool)(await cmd.ExecuteScalarAsync(io.Token))!;
+            return (bool)(await cmd.ExecuteScalarAsync(env.Token))!;
         })
         select result;
 
     /// <summary>
     /// Acquire an advisory lock (blocking).
     /// </summary>
-    public static Db<Unit> advisoryLock(long key) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
+    public static IO<Unit> advisoryLock(NpgsqlConnection conn, long key) =>
+        from _ in ensureOpen(conn)
+        from __ in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = $"SELECT pg_advisory_lock({key})";
-            await cmd.ExecuteScalarAsync(io.Token);
+            await cmd.ExecuteScalarAsync(env.Token);
             return unit;
         })
         select unit;
@@ -187,70 +156,58 @@ public static class PostgresDb
     /// <summary>
     /// Release an advisory lock.
     /// </summary>
-    public static Db<Unit> advisoryUnlock(long key) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in Db.liftIO<Unit>(async io =>
+    public static IO<Unit> advisoryUnlock(NpgsqlConnection conn, long key) =>
+        IO.liftAsync(async env =>
         {
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = $"SELECT pg_advisory_unlock({key})";
-            await cmd.ExecuteScalarAsync(io.Token);
+            await cmd.ExecuteScalarAsync(env.Token);
             return unit;
-        })
-        select unit;
+        });
 
     /// <summary>
-    /// Execute an operation while holding an advisory lock.
+    /// Execute an IO operation while holding an advisory lock.
     /// Releases lock on completion or error.
     /// </summary>
-    public static Db<A> withAdvisoryLock<A>(long key, Db<A> operation) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from _ in advisoryLock(key)
-        from operationIO in Db.ToIO(operation).As()
-        from result in Db.liftIO(
-            operationIO.Catch(
-                _ => true,
-                err => advisoryUnlockIO(key, conn).Bind(_ => IO.fail<A>(err))
-            )
+    public static IO<A> withAdvisoryLock<A>(NpgsqlConnection conn, long key, IO<A> operation) =>
+        from _ in advisoryLock(conn, key)
+        from result in operation.Catch(
+            _ => true,
+            err => advisoryUnlock(conn, key).Bind(_ => IO.fail<A>(err))
         )
-        from __ in Db.liftIO(advisoryUnlockIO(key, conn))
+        from __ in advisoryUnlock(conn, key)
         select result;
 
     /// <summary>
-    /// Release an advisory lock using a captured connection (pure IO).
+    /// Execute a Db operation while holding an advisory lock.
+    /// Convenience overload that extracts IO from the Db operation.
+    /// Releases lock on completion or error.
     /// </summary>
-    private static IO<Unit> advisoryUnlockIO(long key, NpgsqlConnection conn) =>
-        IO.liftAsync<Unit>(async envIO =>
-        {
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"SELECT pg_advisory_unlock({key})";
-            await cmd.ExecuteScalarAsync(envIO.Token);
-            return unit;
-        });
+    public static Db<A> withAdvisoryLock<A>(NpgsqlConnection conn, long key, Db<A> operation) =>
+        from operationIO in Db.ToIO(operation).As()
+        from result in Db.liftIO(withAdvisoryLock(conn, key, operationIO))
+        select result;
 
     // ==================== Raw Npgsql Queries ====================
 
     /// <summary>
     /// Execute a raw query with custom row mapping.
     /// </summary>
-    public static Db<Seq<A>> rawQuery<A>(
+    public static IO<Seq<A>> rawQuery<A>(
+        NpgsqlConnection conn,
         string sql,
         Func<NpgsqlDataReader, A> mapper,
         params NpgsqlParameter[] parameters
     ) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from results in Db.liftIO<Seq<A>>(async io =>
+        from _ in ensureOpen(conn)
+        from results in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = sql;
             cmd.Parameters.AddRange(parameters);
-            await using var reader = await cmd.ExecuteReaderAsync(io.Token);
+            await using var reader = await cmd.ExecuteReaderAsync(env.Token);
             var list = new List<A>();
-            while (await reader.ReadAsync(io.Token))
+            while (await reader.ReadAsync(env.Token))
                 list.Add(mapper(reader));
             return toSeq(list).Strict();
         })
@@ -259,17 +216,18 @@ public static class PostgresDb
     /// <summary>
     /// Execute a raw scalar query.
     /// </summary>
-    public static Db<Option<A>> rawScalar<A>(string sql, params NpgsqlParameter[] parameters) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from result in Db.liftIO<Option<A>>(async io =>
+    public static IO<Option<A>> rawScalar<A>(
+        NpgsqlConnection conn,
+        string sql,
+        params NpgsqlParameter[] parameters
+    ) =>
+        from _ in ensureOpen(conn)
+        from result in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = sql;
             cmd.Parameters.AddRange(parameters);
-            var scalar = await cmd.ExecuteScalarAsync(io.Token);
+            var scalar = await cmd.ExecuteScalarAsync(env.Token);
             return scalar == null || scalar == DBNull.Value ? Option<A>.None : Some((A)scalar);
         })
         select result;
@@ -279,18 +237,16 @@ public static class PostgresDb
     /// <summary>
     /// Query JSONB data using jsonb_path_query_first.
     /// </summary>
-    public static Db<Option<A>> jsonbPath<A>(
+    public static IO<Option<A>> jsonbPath<A>(
+        NpgsqlConnection conn,
         string table,
         string jsonColumn,
         string jsonPath,
         Option<object> vars = default
     ) =>
-        from e in Db.env
-        let conn = GetNpgsqlConnection(e)
-        from result in Db.liftIO<Option<A>>(async io =>
+        from _ in ensureOpen(conn)
+        from result in IO.liftAsync(async env =>
         {
-            if (conn.State != ConnectionState.Open)
-                await conn.OpenAsync(io.Token);
             await using var cmd = conn.CreateCommand();
             cmd.CommandText = vars.IsNone
                 ? $"SELECT jsonb_path_query_first({jsonColumn}, $1) FROM {table}"
@@ -303,7 +259,7 @@ public static class PostgresDb
                     new NpgsqlParameter { Value = v, NpgsqlDbType = NpgsqlDbType.Jsonb }
                 )
             );
-            var scalar = await cmd.ExecuteScalarAsync(io.Token);
+            var scalar = await cmd.ExecuteScalarAsync(env.Token);
 
             // Handle SQL NULL (no match found)
             if (scalar == null || scalar == DBNull.Value)
