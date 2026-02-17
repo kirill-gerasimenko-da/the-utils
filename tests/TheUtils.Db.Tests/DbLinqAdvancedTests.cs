@@ -25,7 +25,7 @@ public class DbLinqAdvancedTests : IAsyncLifetime
 
     // ==================== Setup Helper ====================
 
-    private async Task SeedTestData(DbEnv env)
+    private async Task SeedTestData(DbRT env)
     {
         await addRange(Seq(
             new User { Name = "Alice", Email = "alice@test.com", Balance = 100, IsActive = true },
@@ -35,7 +35,7 @@ public class DbLinqAdvancedTests : IAsyncLifetime
             new User { Name = "Eve", Email = "eve@test.com", Balance = 100, IsActive = false },
             new User { Name = "Alice", Email = "alice2@test.com", Balance = 250, IsActive = true } // Duplicate name
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
     }
 
     // ==================== OrderBy Tests ====================
@@ -43,11 +43,11 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithOrderBy_ReturnsOrdered()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var results = await seq(env.Context.Set<User>().OrderBy(u => u.Name))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var names = results.Map(u => u.Name).ToList();
         names.Should().BeInAscendingOrder();
@@ -56,11 +56,11 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithOrderByDescending_ReturnsDescending()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var results = await seq(env.Context.Set<User>().OrderByDescending(u => u.Balance))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var balances = results.Map(u => u.Balance).ToList();
         balances.Should().BeInDescendingOrder();
@@ -69,13 +69,13 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithThenBy_MultipleOrdering()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var results = await seq(env.Context.Set<User>()
             .OrderBy(u => u.Name)
             .ThenByDescending(u => u.Balance))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Both Alices should be together, with higher balance first
         var alices = results.Where(u => u.Name == "Alice").ToList();
@@ -88,7 +88,7 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithSkipTake_ReturnsPaginated()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Get second page (skip first 2, take next 2)
@@ -96,7 +96,7 @@ public class DbLinqAdvancedTests : IAsyncLifetime
             .OrderBy(u => u.Email)
             .Skip(2)
             .Take(2))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(2);
     }
@@ -104,11 +104,11 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithTake_LimitsResults()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var results = await seq(env.Context.Set<User>().Take(3))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(3);
     }
@@ -116,14 +116,14 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithSkip_SkipsResults()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var all = await seq(env.Context.Set<User>().OrderBy(u => u.Id))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var skipped = await seq(env.Context.Set<User>().OrderBy(u => u.Id).Skip(2))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         skipped.Count.Should().Be(all.Count - 2);
     }
@@ -133,14 +133,14 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithDistinct_ReturnsUnique()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Get distinct names (note: SQLite handles this via LINQ-to-Objects for Select+Distinct)
         var distinctNames = await seq(env.Context.Set<User>()
             .Select(u => u.Name)
             .Distinct())
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Should have 5 unique names (Alice appears twice)
         distinctNames.Count.Should().Be(5);
@@ -149,14 +149,14 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithDistinctBalances_ReturnsUnique()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Get distinct balances
         var distinctBalances = await seq(env.Context.Set<User>()
             .Select(u => u.Balance)
             .Distinct())
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // 100 appears twice, so we should have 5 unique balances
         distinctBalances.Count.Should().Be(5);
@@ -167,14 +167,14 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithGroupBy_ReturnsGroups()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Group by IsActive and count
         var groups = await seq(env.Context.Set<User>()
             .GroupBy(u => u.IsActive)
             .Select(g => new { IsActive = g.Key, Count = g.Count() }))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         groups.Count.Should().Be(2); // true and false groups
         groups.Sum(g => g.Count).Should().Be(6); // Total users
@@ -183,14 +183,14 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithGroupByAndSum_CalculatesAggregates()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Group by IsActive and sum balances
         var groups = await seq(env.Context.Set<User>()
             .GroupBy(u => u.IsActive)
             .Select(g => new { IsActive = g.Key, TotalBalance = g.Sum(u => u.Balance) }))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         groups.Count.Should().Be(2);
         var activeGroup = groups.Single(g => g.IsActive);
@@ -206,12 +206,12 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithSelect_ProjectsFields()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var projections = await seq(env.Context.Set<User>()
             .Select(u => new { u.Name, u.Email }))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         projections.Count.Should().Be(6);
         projections.All(p => !string.IsNullOrEmpty(p.Name) && !string.IsNullOrEmpty(p.Email))
@@ -221,12 +221,12 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithSelectComputed_ReturnsComputedValues()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var computed = await seq(env.Context.Set<User>()
             .Select(u => new { u.Name, DoubleBalance = u.Balance * 2 }))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         computed.Count.Should().Be(6);
         computed.All(c => c.DoubleBalance >= 200).Should().BeTrue(); // Min balance * 2 = 100 * 2 = 200
@@ -237,12 +237,12 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithWhere_ComplexPredicate()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var results = await seq(env.Context.Set<User>()
             .Where(u => u.IsActive && u.Balance > 150))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Bob (200), David (300), Alice2 (250) match
         results.Count.Should().Be(3);
@@ -252,13 +252,13 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithWhere_StringOperations()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Find users whose names start with 'A'
         var results = await seq(env.Context.Set<User>()
             .Where(u => u.Name.StartsWith("A")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(2); // Both Alices
     }
@@ -266,14 +266,14 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithWhere_ContainsOperation()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var targetEmails = new[] { "alice@test.com", "bob@test.com", "nonexistent@test.com" };
 
         var results = await seq(env.Context.Set<User>()
             .Where(u => targetEmails.Contains(u.Email)))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(2);
     }
@@ -283,12 +283,12 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Head_WithOrdering_ReturnsFirst()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var result = await head(env.Context.Set<User>()
             .OrderBy(u => u.Balance))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         result.IsSome.Should().BeTrue();
         result.IfSome(u => u.Balance.Should().Be(100));
@@ -299,7 +299,7 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Seq_ChainedOperations_WorkCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         // Complex query chain
@@ -308,7 +308,7 @@ public class DbLinqAdvancedTests : IAsyncLifetime
             .OrderByDescending(u => u.Balance)
             .Take(3)
             .Select(u => new { u.Name, u.Balance }))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(3);
         // Should be David (300), Alice2 (250), Bob (200) in order
@@ -322,11 +322,11 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Count_WithPredicate_CountsMatching()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var activeCount = await count(env.Context.Set<User>().Where(u => u.IsActive))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         activeCount.Should().Be(4); // Alice, Bob, David, Alice2
     }
@@ -336,12 +336,12 @@ public class DbLinqAdvancedTests : IAsyncLifetime
     [Fact]
     public async Task Any_WithComplexPredicate_ChecksCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         await SeedTestData(env);
 
         var hasRichActive = await any(env.Context.Set<User>()
             .Where(u => u.IsActive && u.Balance > 250))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         hasRichActive.Should().BeTrue(); // David has 300
     }

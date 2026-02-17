@@ -1,169 +1,264 @@
 namespace TheUtils;
 
+using System.Data;
 using LanguageExt;
 using LanguageExt.Common;
 using LanguageExt.Traits;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using static LanguageExt.Prelude;
 
 /// <summary>
-/// The database monad - wraps ReaderT&lt;DbEnv, IO, A&gt;.
-/// Provides effectful database operations with environment access.
+/// Read-only environment for database monad operations.
+/// Contains connection configuration and defaults.
 /// </summary>
-public readonly record struct Db<A>(ReaderT<DbEnv, IO, A> runDb) : K<Db, A>
-    where A : notnull
+public record DbRT(
+    DbContext Context,
+    Option<IsolationLevel> DefaultIsolation = default,
+    Option<TimeSpan> CommandTimeout = default
+)
 {
     /// <summary>
-    /// Run the computation with the provided environment.
+    /// Creates environment from just a DbContext (most common case).
     /// </summary>
-    public IO<A> Run(DbEnv env) => runDb.Run(env).As();
-
-    // LINQ query syntax support
-    public Db<B> Map<B>(Func<A, B> f)
-        where B : notnull => new(runDb.Map(f));
-
-    public Db<B> Bind<B>(Func<A, Db<B>> f)
-        where B : notnull => new(runDb.Bind(a => f(a).runDb));
-
-    public Db<B> Select<B>(Func<A, B> f)
-        where B : notnull => Map(f);
-
-    public Db<C> SelectMany<B, C>(Func<A, Db<B>> bind, Func<A, B, C> project)
-        where C : notnull
-        where B : notnull => Bind(a => bind(a).Map(b => project(a, b)));
-
-    // IO interop
-    public static implicit operator Db<A>(IO<A> io) => Db.LiftIO(io).As();
-
-    public Db<C> SelectMany<B, C>(Func<A, IO<B>> bind, Func<A, B, C> project)
-        where B : notnull
-        where C : notnull => Bind(a => Db.LiftIO(bind(a)).As().Map(b => project(a, b)));
-
-    // sequencing
-    public static Db<A> operator >>(Db<A> lhs, Db<A> rhs) => lhs.Bind(_ => rhs);
-
-    public static Db<A> operator >>(Db<A> lhs, IO<A> rhs) =>
-        lhs.Bind(_ => Db.LiftIO(rhs).As());
-
-    // ignore
-    public static Db<Unit> operator ~(Db<A> ma) => ma.Map(_ => unit);
+    public static DbRT FromContext(DbContext context) => new(context);
 }
 
 /// <summary>
-/// Db witness type with trait implementations.
-/// Uses Deriving for Monad; manual for MonadIO, MonadUnliftIO, Fallible, Readable.
+/// Database monad operations module.
+/// All methods return Eff&lt;DbRT, A&gt; — LanguageExt's built-in reader + IO monad.
 /// </summary>
-public partial class Db : Deriving.Monad<Db, ReaderT<DbEnv, IO>>
+public static class Db
 {
-    // ========== Deriving Morphisms (Required) ==========
+    // ==================== Runtime Access ====================
 
-    /// <summary>
-    /// Transform Db to the underlying ReaderT transformer.
-    /// </summary>
-    public static K<ReaderT<DbEnv, IO>, A> Transform<A>(K<Db, A> fa)
-        where A : notnull => fa.As().runDb;
+    public static Eff<DbRT, DbRT> runtime => Eff.runtime<DbRT>();
 
-    /// <summary>
-    /// CoTransform from ReaderT back to Db.
-    /// </summary>
-    public static K<Db, A> CoTransform<A>(K<ReaderT<DbEnv, IO>, A> fa)
-        where A : notnull => new Db<A>(fa.As());
+    public static Eff<DbRT, DbContext> context => from rt in runtime select rt.Context;
 
-    // ========== Convenience ==========
+    public static Eff<DbRT, DatabaseFacade> facade => from c in context select c.Database;
 
-    /// <summary>
-    /// Convert K&lt;Db, A&gt; to Db&lt;A&gt;.
-    /// </summary>
-    public static Db<A> As<A>(K<Db, A> ma)
-        where A : notnull => (Db<A>)ma;
-}
+    // ==================== IO Lifting ====================
 
-/// <summary>
-/// Manual trait implementations that cannot be derived.
-/// MonadIO, MonadUnliftIO, Fallible, and Readable require explicit implementation.
-/// </summary>
-public partial class Db : MonadUnliftIO<Db>, Fallible<Db>, Readable<Db, DbEnv>
-{
-    // ========== MonadIO ==========
+    public static Eff<DbRT, A> liftIO<A>(IO<A> io) => Eff.lift<DbRT, A>(io);
 
-    /// <summary>
-    /// Lift an IO computation into Db.
-    /// </summary>
-    public static K<Db, A> LiftIO<A>(IO<A> io)
-        where A : notnull => CoTransform(MonadIO.liftIO<ReaderT<DbEnv, IO>, A>(io));
+    public static Eff<DbRT, A> liftIO<A>(Func<EnvIO, Task<A>> f) => liftIO(IO.liftAsync(f));
 
-    // ========== MonadUnliftIO ==========
+    public static Eff<DbRT, A> liftIO<A>(Func<A> f) => liftIO(IO.lift(f));
 
-    /// <summary>
-    /// Extract the IO from within a Db computation.
-    /// Returns a Db that, when run, produces the IO that the original computation would produce.
-    /// </summary>
-    public static K<Db, IO<A>> ToIO<A>(K<Db, A> ma)
-        where A : notnull => Asks<IO<A>>(e => ma.As().Run(e));
+    // ==================== Pure & Fail ====================
 
-    // ========== Fallible ==========
+    public static Eff<DbRT, A> pure<A>(A value) => Eff.Success<DbRT, A>(value);
 
-    /// <summary>
-    /// Fail with an error.
-    /// </summary>
-    public static K<Db, A> Fail<A>(Error error)
-        where A : notnull => LiftIO(IO.fail<A>(error));
+    public static Eff<DbRT, A> fail<A>(Error error) => Eff.Fail<DbRT, A>(error);
 
-    /// <summary>
-    /// Catch errors matching the predicate and handle them.
-    /// If the predicate doesn't match, the error is re-thrown.
-    /// </summary>
-    public static K<Db, A> Catch<A>(
-        K<Db, A> ma,
-        Func<Error, bool> predicate,
-        Func<Error, K<Db, A>> handler
-    )
-        where A : notnull
-    {
-        return new Db<A>(
-            new ReaderT<DbEnv, IO, A>(e =>
-                ma.As()
-                    .Run(e)
-                    .Catch(err => predicate(err) ? handler(err).As().Run(e) : IO.fail<A>(err))
+    public static Eff<DbRT, A> fail<A>(string message) => fail<A>(Error.New(message));
+
+    // ==================== Query Operations (EF Core) ====================
+
+    public static Eff<DbRT, Seq<A>> seq<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO<List<A>>(io => query.ToListAsync(io.Token))
+        select toSeq(r).Strict();
+
+    public static Eff<DbRT, Seq<A>> seq<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in seq(q)
+        select r;
+
+    public static Eff<DbRT, Seq<A>> seq<A>(string sql, Seq<object> @params = default) =>
+        from q in query<A>(sql, @params)
+        from r in seq(q)
+        select r;
+
+    public static Eff<DbRT, bool> any<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(io => query.AnyAsync(io.Token))
+        select r;
+
+    public static Eff<DbRT, bool> any<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in any(q)
+        select r;
+
+    public static Eff<DbRT, int> count<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO(io => query.CountAsync(io.Token))
+        select r;
+
+    public static Eff<DbRT, int> count<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in count(q)
+        select r;
+
+    public static Eff<DbRT, Option<A>> head<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO<A>(io => query.FirstOrDefaultAsync(io.Token)!)
+        select Optional(r);
+
+    public static Eff<DbRT, Option<A>> head<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in head(q)
+        select r;
+
+    // ==================== headT (OptionT variant) ====================
+
+    public static OptionT<Eff<DbRT>, A> headT<A>(IQueryable<A> query) => OptionT.lift(head(query));
+
+    public static OptionT<Eff<DbRT>, A> headT<A>(FormattableString sql)
+        where A : class => OptionT.lift(head<A>(sql));
+
+    public static Eff<DbRT, A> single<A>(IQueryable<A> query) =>
+        from _ in context
+        from r in liftIO<A>(io => query.SingleAsync(io.Token))
+        select r;
+
+    public static Eff<DbRT, A> single<A>(FormattableString sql) =>
+        from q in query<A>(sql)
+        from r in single(q)
+        select r;
+
+    public static Eff<DbRT, DbSet<A>> set<A>()
+        where A : class => from c in context select c.Set<A>();
+
+    public static Eff<DbRT, IQueryable<A>> query<A>(FormattableString sql) =>
+        from f in facade
+        select f.SqlQuery<A>(sql);
+
+    public static Eff<DbRT, IQueryable<A>> query<A>(string sql, Seq<object> @params = default) =>
+        from f in facade
+        select f.SqlQueryRaw<A>(sql, @params.ToArray());
+
+    // ==================== Entity Operations ====================
+
+    public static Eff<DbRT, EntityEntry<A>> add<A>(A entity)
+        where A : class =>
+        from s in set<A>()
+        from e in liftIO<EntityEntry<A>>(io => s.AddAsync(entity, io.Token).AsTask())
+        select e;
+
+    public static Eff<DbRT, Unit> addRange<A>(Seq<A> entities)
+        where A : class =>
+        from s in set<A>()
+        from _ in liftIO(async io =>
+        {
+            await s.AddRangeAsync(entities, io.Token);
+            return unit;
+        })
+        select unit;
+
+    public static Eff<DbRT, EntityEntry<A>> update<A>(A entity)
+        where A : class => from s in set<A>() select s.Update(entity);
+
+    public static Eff<DbRT, Unit> updateRange<A>(Seq<A> entities)
+        where A : class =>
+        from s in set<A>()
+        from _ in liftIO(() =>
+        {
+            s.UpdateRange(entities);
+            return unit;
+        })
+        select unit;
+
+    public static Eff<DbRT, EntityEntry<A>> delete<A>(A entity)
+        where A : class => from s in set<A>() select s.Remove(entity);
+
+    public static Eff<DbRT, Unit> deleteRange<A>(Seq<A> entities)
+        where A : class =>
+        from s in set<A>()
+        from _ in liftIO(() =>
+        {
+            s.RemoveRange(entities);
+            return unit;
+        })
+        select unit;
+
+    public static Eff<DbRT, int> saveChanges =>
+        from c in context
+        from n in liftIO(io => c.SaveChangesAsync(io.Token))
+        select n;
+
+    // ==================== Raw SQL Execution ====================
+
+    public static Eff<DbRT, int> execute(FormattableString sql) =>
+        from f in facade
+        from n in liftIO(io => f.ExecuteSqlAsync(sql, io.Token))
+        select n;
+
+    public static Eff<DbRT, int> executeRaw(string sql, Seq<object> @params = default) =>
+        from f in facade
+        from n in liftIO(io => f.ExecuteSqlRawAsync(sql, @params.ToArray(), io.Token))
+        select n;
+
+    // ==================== Transaction Management ====================
+
+    public static Eff<DbRT, Option<IDbContextTransaction>> currentTransaction =>
+        from c in context
+        select Optional(c.Database.CurrentTransaction);
+
+    public static Eff<DbRT, IDbContextTransaction> beginTransaction(
+        Option<IsolationLevel> level = default
+    ) =>
+        from rt in runtime
+        from t in liftIO(io =>
+            rt.Context.Database.BeginTransactionAsync(
+                (level | rt.DefaultIsolation).IfNone(IsolationLevel.Unspecified),
+                io.Token
             )
-        );
-    }
+        )
+        select t;
 
-    // ========== Readable ==========
+    public static Eff<DbRT, Unit> commit =>
+        from c in context
+        from _ in liftIO(async io =>
+        {
+            if (c.Database.CurrentTransaction is { } txn)
+                await txn.CommitAsync(io.Token);
+            return unit;
+        })
+        select unit;
 
-    /// <summary>
-    /// Access the environment via a projection function.
-    /// </summary>
-    public static K<Db, A> Asks<A>(Func<DbEnv, A> f)
-        where A : notnull => new Db<A>(Readable.asks<ReaderT<DbEnv, IO>, DbEnv, A>(f).As());
+    public static Eff<DbRT, Unit> rollback =>
+        from c in context
+        from _ in liftIO(async io =>
+        {
+            if (c.Database.CurrentTransaction is { } txn)
+                await txn.RollbackAsync(io.Token);
+            return unit;
+        })
+        select unit;
 
-    /// <summary>
-    /// Run a computation with a locally modified environment.
-    /// </summary>
-    public static K<Db, A> Local<A>(Func<DbEnv, DbEnv> f, K<Db, A> ma)
-        where A : notnull
-    {
-        return new Db<A>(Readable.local(f, ma.As().runDb).As());
-    }
-}
-
-/// <summary>
-/// Extension methods for Db monad.
-/// </summary>
-public static class DbExtensions
-{
-    extension<A>(K<Db, A> ma) where A : notnull
-    {
-        /// <summary>
-        /// Convert K&lt;Db, A&gt; to Db&lt;A&gt;.
-        /// </summary>
-        public Db<A> As() => Db.As(ma);
-    }
-
-    extension<A>(Db<A> ma) where A : notnull
-    {
-        /// <summary>
-        /// Ignore the result, returning Unit.
-        /// </summary>
-        public Db<Unit> Ignore() => ma.Map(_ => unit);
-    }
+    public static Eff<DbRT, A> transact<A>(
+        Eff<DbRT, A> operation,
+        Option<IsolationLevel> level = default
+    ) =>
+        from tx in beginTransaction(level)
+        from operationIO in MonadUnliftIO
+            .toIO<Eff<DbRT>, A>(
+                from r in operation
+                from _ in liftIO(
+                    IO.liftAsync(async envIO =>
+                    {
+                        await tx.CommitAsync(envIO.Token);
+                        return unit;
+                    })
+                )
+                select r
+            )
+            .As()
+        from result in liftIO(
+            operationIO.Catch(
+                _ => true,
+                err =>
+                    IO.liftAsync(async envIO =>
+                        {
+                            await tx.RollbackAsync(envIO.Token);
+                            return unit;
+                        })
+                        .Bind(_ => IO.fail<A>(err))
+            )
+        )
+        select result;
 }

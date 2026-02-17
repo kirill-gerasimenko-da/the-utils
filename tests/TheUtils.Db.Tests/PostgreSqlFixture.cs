@@ -46,12 +46,12 @@ public class PostgreSqlFixture : IAsyncLifetime
     }
 
     /// <summary>
-    /// Create a DbEnv for the Db monad.
+    /// Create a DbRT for the Db monad.
     /// </summary>
-    public DbEnv CreateDbEnv()
+    public DbRT CreateDbRT()
     {
         var context = CreateDbContext();
-        return new DbEnv(context);
+        return new DbRT(context);
     }
 
     /// <summary>

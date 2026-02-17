@@ -292,7 +292,7 @@ var pipeline =
     select processed;
 
 var result = await pipeline
-    .Run(new DbEnv(dbContext))
+    .Run(new DbRT(dbContext))
     .RunAsync();
 ```
 

@@ -28,11 +28,11 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_InsertStatement_InsertsRow()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var affected = await executeRaw(
             "INSERT INTO users (name, email, balance, created_at, is_active) VALUES ('RawInsert', 'rawinsert@test.com', 100.0, NOW(), true)"
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         affected.Should().Be(1);
 
@@ -46,19 +46,19 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_UpdateStatement_UpdatesRows()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Setup
         await addRange(Seq(
             new User { Name = "Update1", Email = "update1@test.com", Balance = 50 },
             new User { Name = "Update2", Email = "update2@test.com", Balance = 50 }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         // Update
         var affected = await executeRaw(
             "UPDATE users SET balance = 100 WHERE email LIKE 'update%'"
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         affected.Should().Be(2);
 
@@ -71,7 +71,7 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_DeleteStatement_DeletesRows()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Setup
         await addRange(Seq(
@@ -79,12 +79,12 @@ public class DbSqlQueryTests : IAsyncLifetime
             new User { Name = "Delete2", Email = "delete2@test.com" },
             new User { Name = "Keep", Email = "keep@test.com" }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         // Delete
         var affected = await executeRaw(
             "DELETE FROM users WHERE email LIKE 'delete%'"
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         affected.Should().Be(2);
 
@@ -98,19 +98,19 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_WithParameters_PassesCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Setup
         await add(new User { Name = "ParamTest", Email = "paramtest@test.com", Balance = 0 })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Update with parameter
         var newBalance = 999m;
         var affected = await executeRaw(
             "UPDATE users SET balance = {0} WHERE email = {1}",
             Seq<object>(newBalance, "paramtest@test.com")
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         affected.Should().Be(1);
 
@@ -123,11 +123,11 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_NoMatchingRows_ReturnsZero()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var affected = await executeRaw(
             "DELETE FROM users WHERE email = 'nonexistent@test.com'"
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         affected.Should().Be(0);
     }
@@ -137,19 +137,19 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task Query_WithRawSql_ReturnsResults()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Setup
         await addRange(Seq(
             new User { Name = "Query1", Email = "query1@test.com", Balance = 100 },
             new User { Name = "Query2", Email = "query2@test.com", Balance = 200 }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         // Query using raw SQL through EF Core
         var results = await seq(env.Context.Set<User>()
             .FromSqlRaw("SELECT * FROM users WHERE email LIKE 'query%' ORDER BY name"))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(2);
         results[0].Name.Should().Be("Query1");
@@ -161,7 +161,7 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task Seq_WithRawSqlAndParams_ReturnsFilteredResults()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Use a very specific email prefix for isolation
         var testId = Guid.NewGuid().ToString("N")[..8];
@@ -175,13 +175,13 @@ public class DbSqlQueryTests : IAsyncLifetime
             new User { Name = "SeqSql2", Email = email2, Balance = 150 },
             new User { Name = "SeqSql3", Email = email3, Balance = 250 }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         // Query using LINQ on top of raw SQL for proper filtering
         var results = await seq(env.Context.Set<User>()
             .FromSqlRaw("SELECT * FROM users WHERE balance > {0}", 100m)
             .Where(u => u.Email.StartsWith($"seqparam_{testId}")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(2);
         results.ToList().Should().OnlyContain(u => u.Balance > 100);
@@ -192,14 +192,14 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_WithRawSql_CommitsOnSuccess()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in executeRaw("INSERT INTO users (name, email, balance, created_at, is_active) VALUES ('TxRaw', 'txraw@test.com', 0, NOW(), true)")
             select unit
         );
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "txraw@test.com");
@@ -209,7 +209,7 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_WithRawSql_RollsBackOnFailure()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in executeRaw("INSERT INTO users (name, email, balance, created_at, is_active) VALUES ('TxRawFail', 'txrawfail@test.com', 0, NOW(), true)")
@@ -217,7 +217,7 @@ public class DbSqlQueryTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
         await act.Should().ThrowAsync<Exception>();
 
         await using var verifyContext = _fixture.CreateDbContext();
@@ -230,7 +230,7 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task MixedOperations_EfCoreAndRawSql_WorkTogether()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from entry in add(new User { Name = "EFUser", Email = "efuser@test.com", Balance = 100 })
@@ -240,7 +240,7 @@ public class DbSqlQueryTests : IAsyncLifetime
             select c
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().Be(2);
 
         // Verify both exist
@@ -257,19 +257,19 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_WithParameters_PreventsInjection()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Setup
         await add(new User { Name = "Safe", Email = "safe@test.com", Balance = 100 })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Attempt injection via parameter - should be safely escaped
         var maliciousInput = "'; DELETE FROM users; --";
         var affected = await executeRaw(
             "UPDATE users SET name = {0} WHERE email = 'safe@test.com'",
             Seq<object>(maliciousInput)
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         // Should just update the name to the literal string, not execute the injection
         await using var verifyContext = _fixture.CreateDbContext();
@@ -283,16 +283,16 @@ public class DbSqlQueryTests : IAsyncLifetime
     [Fact]
     public async Task ExecuteRaw_WithDatabaseSpecificSql_Works()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // PostgreSQL datetime function
         await add(new User { Name = "DateTest", Email = "datetest@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var affected = await executeRaw(
             "UPDATE users SET created_at = NOW() WHERE email = 'datetest@test.com'"
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         affected.Should().Be(1);
     }

@@ -33,7 +33,7 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_Add_InsertsCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var account = new Account
         {
@@ -44,7 +44,7 @@ public class DbAccountEntityTests : IAsyncLifetime
 
         await add(account)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -57,7 +57,7 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_AddRange_InsertsMultiple()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var accounts = Seq(
             new Account { UserId = 1, Balance = 100m, Currency = "USD" },
@@ -67,7 +67,7 @@ public class DbAccountEntityTests : IAsyncLifetime
 
         await addRange(accounts)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -78,17 +78,17 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_Query_FiltersByUserId()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         await addRange(Seq(
             new Account { UserId = 100, Balance = 500m },
             new Account { UserId = 100, Balance = 300m },
             new Account { UserId = 200, Balance = 1000m }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         var results = await seq(env.Context.Set<Account>().Where(a => a.UserId == 100))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(2);
         results.All(a => a.UserId == 100).Should().BeTrue();
@@ -97,18 +97,18 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_Update_ModifiesBalance()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Create account
         var entry = await add(new Account { UserId = 50, Balance = 100m })
             .Bind(e => saveChanges.Map(_ => e))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var accountId = entry.Entity.Id;
 
         // Update balance
         var account = await head(env.Context.Set<Account>().Where(a => a.Id == accountId))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         account.IsSome.Should().BeTrue();
         account.IfSome(a =>
@@ -116,7 +116,7 @@ public class DbAccountEntityTests : IAsyncLifetime
             a.Balance = 999m;
         });
 
-        await saveChanges.Run(env).RunAsync();
+        await saveChanges.RunIO(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -127,21 +127,21 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_Delete_RemovesCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var entry = await add(new Account { UserId = 60, Balance = 500m })
             .Bind(e => saveChanges.Map(_ => e))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var accountId = entry.Entity.Id;
 
         // Delete
         var account = await single(env.Context.Set<Account>().Where(a => a.Id == accountId))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         await delete(account)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -154,7 +154,7 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_GroupByCurrency_ReturnsCorrectGroups()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         await addRange(Seq(
             new Account { UserId = 1, Balance = 100m, Currency = "USD" },
@@ -163,12 +163,12 @@ public class DbAccountEntityTests : IAsyncLifetime
             new Account { UserId = 4, Balance = 400m, Currency = "EUR" },
             new Account { UserId = 5, Balance = 500m, Currency = "GBP" }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         var results = await seq(env.Context.Set<Account>()
             .GroupBy(a => a.Currency)
             .Select(g => new { Currency = g.Key, Total = g.Sum(a => a.Balance) }))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(3);
         results.Single(r => r.Currency == "USD").Total.Should().Be(300m);
@@ -181,14 +181,14 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_TransferFunds_TransactSucceeds()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Create two accounts
         await addRange(Seq(
             new Account { UserId = 1, Balance = 1000m, Currency = "USD" },
             new Account { UserId = 2, Balance = 500m, Currency = "USD" }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
         // Transfer 200 from user 1 to user 2 in a transaction
         var query = transact(
@@ -205,7 +205,7 @@ public class DbAccountEntityTests : IAsyncLifetime
             select unit
         );
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -219,12 +219,12 @@ public class DbAccountEntityTests : IAsyncLifetime
     [Fact]
     public async Task Account_TransferFunds_RollsBackOnError()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Create account with 500 balance
         await add(new Account { UserId = 10, Balance = 500m, Currency = "USD" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Try to transfer more than available (should fail and rollback)
         var query = transact(
@@ -240,7 +240,7 @@ public class DbAccountEntityTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
         await act.Should().ThrowAsync<InvalidOperationException>();
 
         // Balance should be unchanged

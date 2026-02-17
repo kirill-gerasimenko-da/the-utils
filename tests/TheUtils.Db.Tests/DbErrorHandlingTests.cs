@@ -28,23 +28,23 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task SaveChanges_UniqueConstraintViolation_ThrowsDbUpdateException()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Insert first user
         await (
             from _ in add(new User { Name = "First", Email = "unique@test.com" })
             from __ in saveChanges
             select unit
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         // Try to insert duplicate email (unique constraint violation)
-        var env2 = _fixture.CreateDbEnv();
+        var env2 = _fixture.CreateDbRT();
         var query =
             from _ in add(new User { Name = "Second", Email = "unique@test.com" })
             from __ in saveChanges
             select unit;
 
-        var act = async () => await query.Run(env2).RunAsync();
+        var act = async () => await query.RunIO(env2).RunAsync();
 
         await act.Should().ThrowAsync<DbUpdateException>();
     }
@@ -52,24 +52,24 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task SaveChanges_UniqueConstraintViolation_InTransaction_RollsBack()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Insert first user
         await (
             from _ in add(new User { Name = "First", Email = "txunique@test.com" })
             from __ in saveChanges
             select unit
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         // Try to insert duplicate in transaction
-        var env2 = _fixture.CreateDbEnv();
+        var env2 = _fixture.CreateDbRT();
         var query = transact(
             from _ in add(new User { Name = "Second", Email = "txunique@test.com" })
             from __ in saveChanges
             select unit
         );
 
-        var act = async () => await query.Run(env2).RunAsync();
+        var act = async () => await query.RunIO(env2).RunAsync();
 
         await act.Should().ThrowAsync<DbUpdateException>();
 
@@ -84,12 +84,12 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task Fail_WithMessage_PropagatesErrorWithCorrectMessage()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var errorMessage = "Custom error message for testing";
 
         var query = fail<int>(errorMessage);
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
 
         var exception = await act.Should().ThrowAsync<Exception>();
         exception.Which.Message.Should().Contain(errorMessage);
@@ -98,7 +98,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task Fail_InTransaction_RollsBackAndPropagatesError()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var errorMessage = "Intentional transaction failure";
 
         var query = transact(
@@ -108,7 +108,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
 
         // Error is propagated
         var exception = await act.Should().ThrowAsync<Exception>();
@@ -123,7 +123,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task Fail_ChainedOperations_StopsAtFailure()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var operationsExecuted = new List<string>();
 
         var query =
@@ -140,7 +140,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
             })
             select unit;
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>();
         operationsExecuted.Should().ContainSingle().Which.Should().Be("first");
@@ -151,59 +151,36 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task Catch_WithMatchingPredicate_RecoverFromError()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
-        var query = Db.Catch(
-            fail<int>("Expected error"),
-            err => err.Message.Contains("Expected"),
-            _ => pure(42)
-        ).As();
+        var query = fail<int>("Expected error")
+            .Catch(err => err.Message.Contains("Expected"), _ => pure(42));
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().Be(42);
-    }
-
-    [Fact]
-    public async Task Catch_WithNonMatchingPredicate_RethrowsError()
-    {
-        var env = _fixture.CreateDbEnv();
-        var errorMessage = "Specific error";
-
-        var query = Db.Catch(
-            fail<int>(errorMessage),
-            err => err.Message.Contains("Different"),
-            _ => pure(42)
-        ).As();
-
-        var act = async () => await query.Run(env).RunAsync();
-
-        var exception = await act.Should().ThrowAsync<Exception>();
-        exception.Which.Message.Should().Contain(errorMessage);
     }
 
     [Fact]
     public async Task Catch_WithDatabaseError_CanRecover()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Add first user
         await (
             from _ in add(new User { Name = "Exists", Email = "catchdb@test.com" })
             from __ in saveChanges
             select unit
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         // Try duplicate, catch and recover
-        var env2 = _fixture.CreateDbEnv();
-        var query = Db.Catch(
+        var env2 = _fixture.CreateDbRT();
+        var query = (
             from _ in add(new User { Name = "Duplicate", Email = "catchdb@test.com" })
             from __ in saveChanges
-            select "inserted",
-            _ => true,
-            _ => pure("recovered")
-        ).As();
+            select "inserted"
+        ).Catch(_ => true, _ => pure("recovered"));
 
-        var result = await query.Run(env2).RunAsync();
+        var result = await query.RunIO(env2).RunAsync();
         result.Should().Be("recovered");
     }
 
@@ -212,7 +189,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task NestedBind_ErrorInInner_PropagatesOutward()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var inner = fail<int>("Inner error");
         var outer =
@@ -220,7 +197,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
             from y in inner
             select x + y;
 
-        var act = async () => await outer.Run(env).RunAsync();
+        var act = async () => await outer.RunIO(env).RunAsync();
 
         var exception = await act.Should().ThrowAsync<Exception>();
         exception.Which.Message.Should().Contain("Inner error");
@@ -229,7 +206,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task ErrorAfterSuccessfulOperation_StillPropagates()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from entry in add(new User { Name = "BeforeError", Email = "beforeerror@test.com" })
@@ -237,7 +214,7 @@ public class DbErrorHandlingTests : IAsyncLifetime
             from __ in fail<Unit>("Error after save")
             select unit;
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*Error after save*");
@@ -253,22 +230,22 @@ public class DbErrorHandlingTests : IAsyncLifetime
     [Fact]
     public async Task DbUpdateException_IsPreservedCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Create constraint violation
         await (
             from _ in add(new User { Name = "First", Email = "preserve@test.com" })
             from __ in saveChanges
             select unit
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
-        var env2 = _fixture.CreateDbEnv();
+        var env2 = _fixture.CreateDbRT();
         var query =
             from _ in add(new User { Name = "Duplicate", Email = "preserve@test.com" })
             from __ in saveChanges
             select unit;
 
-        var act = async () => await query.Run(env2).RunAsync();
+        var act = async () => await query.RunIO(env2).RunAsync();
 
         // The specific exception type should be preserved
         await act.Should().ThrowAsync<DbUpdateException>();

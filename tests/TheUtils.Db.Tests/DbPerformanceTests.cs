@@ -28,7 +28,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task AddRange_LargeBatch_CompletesEfficiently()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var batchSize = 1000;
 
         var users = toSeq(Enumerable.Range(1, batchSize)
@@ -42,7 +42,7 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Verify all inserted
         await using var verifyContext = _fixture.CreateDbContext();
@@ -53,7 +53,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task AddRange_LargeBatch_VerifiesDataIntegrity()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var batchSize = 500;
 
         var users = toSeq(Enumerable.Range(1, batchSize)
@@ -66,7 +66,7 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Verify sum of balances
         await using var verifyContext = _fixture.CreateDbContext();
@@ -83,7 +83,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Seq_LargeResultSet_ReturnsAllResults()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var recordCount = 500;
 
         // Insert many records
@@ -96,11 +96,11 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Query all
         var results = await seq(env.Context.Set<User>().Where(u => u.Email.StartsWith("query")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(recordCount);
     }
@@ -108,7 +108,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Seq_LargeResultSet_OrderedCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var recordCount = 200;
 
         var users = toSeq(Enumerable.Range(1, recordCount)
@@ -121,12 +121,12 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var results = await seq(env.Context.Set<User>()
             .Where(u => u.Email.StartsWith("ordered"))
             .OrderBy(u => u.Balance))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().Be(recordCount);
         // First should have balance 0 (recordCount - recordCount)
@@ -140,7 +140,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_ManyOperations_CommitsSuccessfully()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var operationCount = 100;
 
         var query = transact(
@@ -158,7 +158,7 @@ public class DbPerformanceTests : IAsyncLifetime
             select unit
         );
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         // Verify all committed
         await using var verifyContext = _fixture.CreateDbContext();
@@ -170,16 +170,16 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_ManyOperations_RollsBackOnFailure()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Insert some users first to verify rollback
         await addRange(Seq(
             new User { Name = "PreExisting1", Email = "pre1@test.com" },
             new User { Name = "PreExisting2", Email = "pre2@test.com" }
         )).Bind(_ => saveChanges.Map(_ => unit))
-          .Run(env).RunAsync();
+          .RunIO(env).RunAsync();
 
-        var env2 = _fixture.CreateDbEnv();
+        var env2 = _fixture.CreateDbRT();
 
         // Try to add many users but fail at the end
         var query = transact(
@@ -198,7 +198,7 @@ public class DbPerformanceTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env2).RunAsync();
+        var act = async () => await query.RunIO(env2).RunAsync();
         await act.Should().ThrowAsync<Exception>();
 
         // None of the RollbackUsers should exist
@@ -218,7 +218,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Count_LargeDataset_ReturnsCorrectCount()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var recordCount = 750;
 
         var users = toSeq(Enumerable.Range(1, recordCount)
@@ -230,10 +230,10 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var countResult = await count(env.Context.Set<User>().Where(u => u.Email.StartsWith("count")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         countResult.Should().Be(recordCount);
     }
@@ -241,7 +241,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Any_LargeDataset_ReturnsTrueForExisting()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var recordCount = 300;
 
         var users = toSeq(Enumerable.Range(1, recordCount)
@@ -253,10 +253,10 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         var exists = await any(env.Context.Set<User>().Where(u => u.Email == "any150@test.com"))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         exists.Should().BeTrue();
     }
@@ -266,7 +266,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Seq_Pagination_WorksWithLargeDataset()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var totalRecords = 500;
         var pageSize = 50;
 
@@ -280,7 +280,7 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Get page 3 (indices 100-149)
         var page3 = await seq(env.Context.Set<User>()
@@ -288,7 +288,7 @@ public class DbPerformanceTests : IAsyncLifetime
             .OrderBy(u => u.Balance)
             .Skip(100)
             .Take(pageSize))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         page3.Count.Should().Be(pageSize);
         page3[0].Balance.Should().Be(101m); // First of page 3
@@ -298,7 +298,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Seq_LastPage_ReturnsRemainingRecords()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
         var totalRecords = 123;
         var pageSize = 50;
 
@@ -312,7 +312,7 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Get last page (should have 23 records: 123 - 100)
         var lastPage = await seq(env.Context.Set<User>()
@@ -320,7 +320,7 @@ public class DbPerformanceTests : IAsyncLifetime
             .OrderBy(u => u.Balance)
             .Skip(100)
             .Take(pageSize))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         lastPage.Count.Should().Be(23); // Only 23 remaining
     }
@@ -330,7 +330,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task MultipleOperations_Sequential_MaintainsConsistency()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Perform many sequential add/update/delete operations
         for (int i = 1; i <= 50; i++)
@@ -341,18 +341,18 @@ public class DbPerformanceTests : IAsyncLifetime
                 Email = $"seqop{i}@test.com",
                 Balance = i * 10m
             }).Bind(_ => saveChanges.Map(_ => unit))
-              .Run(env).RunAsync();
+              .RunIO(env).RunAsync();
         }
 
         // Update all balances
         var users = await seq(env.Context.Set<User>().Where(u => u.Email.StartsWith("seqop")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         foreach (var user in users)
         {
             user.Balance *= 2;
         }
-        await saveChanges.Run(env).RunAsync();
+        await saveChanges.RunIO(env).RunAsync();
 
         // Verify
         await using var verifyContext = _fixture.CreateDbContext();
@@ -369,7 +369,7 @@ public class DbPerformanceTests : IAsyncLifetime
     [Fact]
     public async Task Seq_ComplexQuery_ReturnsCorrectResults()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Insert users with varied attributes
         var users = toSeq(Enumerable.Range(1, 200)
@@ -383,7 +383,7 @@ public class DbPerformanceTests : IAsyncLifetime
 
         await addRange(users)
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Complex query: active users with balance > 50, ordered by balance desc, take top 10
         var results = await seq(env.Context.Set<User>()
@@ -392,7 +392,7 @@ public class DbPerformanceTests : IAsyncLifetime
             .Where(u => u.Balance > 50)
             .OrderByDescending(u => u.Balance)
             .Take(10))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         results.Count.Should().BeLessThanOrEqualTo(10);
         results.All(u => u.IsActive).Should().BeTrue();

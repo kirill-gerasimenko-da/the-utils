@@ -16,7 +16,7 @@ Database-agnostic monad for functional EF Core operations using language-ext v5.
 using TheUtils;
 
 // Create environment from DbContext
-var env = DbEnv.FromContext(dbContext);
+var env = DbRT.FromContext(dbContext);
 
 // Compose database operations
 var operation =
@@ -34,10 +34,4 @@ var result = await Db.transact(operation)
 
 ```bash
 dotnet add package TheUtils.Db
-```
-
-For Postgres-specific features (COPY, LISTEN/NOTIFY, advisory locks), also add:
-
-```bash
-dotnet add package TheUtils.Db.Postgres
 ```

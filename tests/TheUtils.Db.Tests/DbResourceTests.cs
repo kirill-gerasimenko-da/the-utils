@@ -23,13 +23,13 @@ public class DbResourceTests : IAsyncLifetime
     public Task InitializeAsync() => _fixture.ResetDatabaseAsync();
     public Task DisposeAsync() => Task.CompletedTask;
 
-    // ==================== DbEnv Creation ====================
+    // ==================== DbRT Creation ====================
 
     [Fact]
-    public void DbEnv_FromContext_CreatesValidEnv()
+    public void DbRT_FromContext_CreatesValidEnv()
     {
         var context = _fixture.CreateDbContext();
-        var env = DbEnv.FromContext(context);
+        var env = DbRT.FromContext(context);
 
         env.Context.Should().Be(context);
         env.DefaultIsolation.IsNone.Should().BeTrue();
@@ -41,7 +41,7 @@ public class DbResourceTests : IAsyncLifetime
     [Fact]
     public async Task MultipleOperations_SameEnv_ReuseContext()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from ctx1 in context
@@ -49,18 +49,18 @@ public class DbResourceTests : IAsyncLifetime
             from ctx2 in context
             select ctx1 == ctx2;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task MultipleOperations_DifferentEnvs_DifferentContexts()
     {
-        var env1 = _fixture.CreateDbEnv();
-        var env2 = _fixture.CreateDbEnv();
+        var env1 = _fixture.CreateDbRT();
+        var env2 = _fixture.CreateDbRT();
 
-        var ctx1 = await context.Run(env1).RunAsync();
-        var ctx2 = await context.Run(env2).RunAsync();
+        var ctx1 = await context.RunIO(env1).RunAsync();
+        var ctx2 = await context.RunIO(env2).RunAsync();
 
         ctx1.Should().NotBeSameAs(ctx2);
     }
@@ -70,7 +70,7 @@ public class DbResourceTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_OnSuccess_CleansUpTransaction()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // Transaction should be cleaned up after successful completion
         var query = transact(
@@ -79,17 +79,17 @@ public class DbResourceTests : IAsyncLifetime
             select unit
         );
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         // After transact completes, no active transaction should remain
-        var hasTx = await currentTransaction.Run(env).RunAsync();
+        var hasTx = await currentTransaction.RunIO(env).RunAsync();
         hasTx.IsNone.Should().BeTrue();
     }
 
     [Fact]
     public async Task Transaction_OnFailure_CleansUpTransaction()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in add(new User { Name = "TxFailCleanup", Email = "txfailcleanup@test.com" })
@@ -98,18 +98,18 @@ public class DbResourceTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
         await act.Should().ThrowAsync<Exception>();
 
         // After failed transact, no active transaction should remain
-        var hasTx = await currentTransaction.Run(env).RunAsync();
+        var hasTx = await currentTransaction.RunIO(env).RunAsync();
         hasTx.IsNone.Should().BeTrue();
     }
 
     [Fact]
     public async Task ManualTransaction_AfterCommit_NoActiveTransaction()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction()
@@ -119,14 +119,14 @@ public class DbResourceTests : IAsyncLifetime
             from afterTx in currentTransaction
             select afterTx.IsNone;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task ManualTransaction_AfterRollback_NoActiveTransaction()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction()
@@ -135,7 +135,7 @@ public class DbResourceTests : IAsyncLifetime
             from afterTx in currentTransaction
             select afterTx.IsNone;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
@@ -151,7 +151,7 @@ public class DbResourceTests : IAsyncLifetime
         if (connection.State != System.Data.ConnectionState.Closed)
             await connection.CloseAsync();
 
-        var env = new DbEnv(context);
+        var env = new DbRT(context);
 
         // EF Core should open the connection automatically
         var query =
@@ -159,7 +159,7 @@ public class DbResourceTests : IAsyncLifetime
             from __ in saveChanges
             select unit;
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         // Verify operation succeeded
         await using var verifyContext = _fixture.CreateDbContext();
@@ -167,24 +167,24 @@ public class DbResourceTests : IAsyncLifetime
         user.Should().NotBeNull();
     }
 
-    // ==================== DbEnv Configuration Options ====================
+    // ==================== DbRT Configuration Options ====================
 
     [Fact]
-    public void DbEnv_WithCommandTimeout_StoresTimeout()
+    public void DbRT_WithCommandTimeout_StoresTimeout()
     {
         var context = _fixture.CreateDbContext();
         var timeout = TimeSpan.FromSeconds(60);
-        var env = new DbEnv(context, CommandTimeout: timeout);
+        var env = new DbRT(context, CommandTimeout: timeout);
 
         env.CommandTimeout.IsSome.Should().BeTrue();
         env.CommandTimeout.IfNone(TimeSpan.Zero).Should().Be(timeout);
     }
 
     [Fact]
-    public void DbEnv_WithDefaultIsolation_StoresIsolation()
+    public void DbRT_WithDefaultIsolation_StoresIsolation()
     {
         var context = _fixture.CreateDbContext();
-        var env = new DbEnv(context, DefaultIsolation: System.Data.IsolationLevel.Serializable);
+        var env = new DbRT(context, DefaultIsolation: System.Data.IsolationLevel.Serializable);
 
         env.DefaultIsolation.IsSome.Should().BeTrue();
         env.DefaultIsolation.IfNone(System.Data.IsolationLevel.Unspecified)
@@ -196,27 +196,27 @@ public class DbResourceTests : IAsyncLifetime
     [Fact]
     public async Task SequentialOperations_SameEnv_MaintainState()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // First operation
         await add(new User { Name = "Seq1", Email = "seq1@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Second operation using same env
         var count = await Db.count(env.Context.Set<User>().Where(u => u.Email.StartsWith("seq")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         count.Should().Be(1);
 
         // Third operation
         await add(new User { Name = "Seq2", Email = "seq2@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         // Fourth operation
         var finalCount = await Db.count(env.Context.Set<User>().Where(u => u.Email.StartsWith("seq")))
-            .Run(env).RunAsync();
+            .RunIO(env).RunAsync();
 
         finalCount.Should().Be(2);
     }
@@ -224,17 +224,17 @@ public class DbResourceTests : IAsyncLifetime
     [Fact]
     public async Task ParallelOperations_DifferentEnvs_Isolated()
     {
-        var env1 = _fixture.CreateDbEnv();
-        var env2 = _fixture.CreateDbEnv();
+        var env1 = _fixture.CreateDbRT();
+        var env2 = _fixture.CreateDbRT();
 
         // Both envs see independent contexts
         var op1 = add(new User { Name = "Parallel1", Email = "parallel1@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env1).RunAsync().AsTask();
+            .RunIO(env1).RunAsync().AsTask();
 
         var op2 = add(new User { Name = "Parallel2", Email = "parallel2@test.com" })
             .Bind(_ => saveChanges.Map(_ => unit))
-            .Run(env2).RunAsync().AsTask();
+            .RunIO(env2).RunAsync().AsTask();
 
         await Task.WhenAll(op1, op2);
 

@@ -31,7 +31,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact(Skip = "PostgreSQL doesn't support nested transactions without savepoints")]
     public async Task NestedTransact_InnerFails_OuterRollsBack()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in add(new User { Name = "Outer", Email = "nested_outer@test.com" })
@@ -45,7 +45,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*Inner failure*");
@@ -62,7 +62,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact(Skip = "PostgreSQL doesn't support nested transactions without savepoints")]
     public async Task NestedTransact_OuterFails_AllRollback()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in add(new User { Name = "Outer", Email = "outer_fail@test.com" })
@@ -76,7 +76,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env).RunAsync();
+        var act = async () => await query.RunIO(env).RunAsync();
 
         await act.Should().ThrowAsync<Exception>()
             .WithMessage("*Outer failure*");
@@ -93,7 +93,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact(Skip = "PostgreSQL doesn't support nested transactions without savepoints")]
     public async Task NestedTransact_BothSucceed_AllCommitted()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in add(new User { Name = "Outer", Email = "nested_success_outer@test.com" })
@@ -106,7 +106,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select unit
         );
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         // Both should be committed
         await using var verifyContext = _fixture.CreateDbContext();
@@ -122,7 +122,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task TransactWithIsolationLevel_UsesSpecifiedLevel()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from tx in currentTransaction
@@ -130,14 +130,14 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             IsolationLevel.Serializable
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task BeginTransaction_WithIsolationLevel_StartsCorrectly()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction(IsolationLevel.ReadCommitted)
@@ -145,22 +145,22 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             from _ in commit
             select hasTx;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
-    public async Task DbEnv_DefaultIsolation_IsUsedByTransaction()
+    public async Task DbRT_DefaultIsolation_IsUsedByTransaction()
     {
         var context = _fixture.CreateDbContext();
-        var env = new DbEnv(context, DefaultIsolation: IsolationLevel.Serializable);
+        var env = new DbRT(context, DefaultIsolation: IsolationLevel.Serializable);
 
         var query = transact(
             from tx in currentTransaction
             select tx.IsSome
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
@@ -169,30 +169,30 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task CurrentTransaction_InsideTransaction_ReturnsSome()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from tx in currentTransaction
             select tx.IsSome
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task CurrentTransaction_OutsideTransaction_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
-        var result = await currentTransaction.Run(env).RunAsync();
+        var result = await currentTransaction.RunIO(env).RunAsync();
         result.IsNone.Should().BeTrue();
     }
 
     [Fact]
     public async Task CurrentTransaction_AfterCommit_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction()
@@ -202,14 +202,14 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             from afterCommit in currentTransaction
             select afterCommit.IsNone;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
     [Fact]
     public async Task CurrentTransaction_AfterRollback_ReturnsNone()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction()
@@ -219,7 +219,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             from afterRollback in currentTransaction
             select afterRollback.IsNone;
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().BeTrue();
     }
 
@@ -228,7 +228,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task ManualBeginCommit_CommitsData()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction()
@@ -237,7 +237,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             from ___ in commit
             select unit;
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "manualtx@test.com");
@@ -247,7 +247,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task ManualBeginRollback_DoesNotCommitData()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query =
             from tx in beginTransaction()
@@ -256,7 +256,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             from ___ in rollback
             select unit;
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var user = await verifyContext.Users.SingleOrDefaultAsync(u => u.Email == "manualrollback@test.com");
@@ -268,7 +268,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_MultipleInserts_AllOrNothing()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in add(new User { Name = "Multi1", Email = "multi1@test.com" })
@@ -278,7 +278,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select unit
         );
 
-        await query.Run(env).RunAsync();
+        await query.RunIO(env).RunAsync();
 
         await using var verifyContext = _fixture.CreateDbContext();
         var count = await verifyContext.Users.CountAsync(u => u.Email.StartsWith("multi"));
@@ -288,17 +288,17 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task Transaction_PartialFailure_RollsBackAll()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         // First insert outside transaction (will be committed)
         await (
             from _ in add(new User { Name = "Existing", Email = "partial1@test.com" })
             from __ in saveChanges
             select unit
-        ).Run(env).RunAsync();
+        ).RunIO(env).RunAsync();
 
         // Try to insert more in transaction with duplicate
-        var env2 = _fixture.CreateDbEnv();
+        var env2 = _fixture.CreateDbRT();
         var query = transact(
             from _ in add(new User { Name = "New1", Email = "partial2@test.com" })
             from __ in add(new User { Name = "Duplicate", Email = "partial1@test.com" }) // duplicate
@@ -306,7 +306,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select unit
         );
 
-        var act = async () => await query.Run(env2).RunAsync();
+        var act = async () => await query.RunIO(env2).RunAsync();
 
         await act.Should().ThrowAsync<DbUpdateException>();
 
@@ -321,7 +321,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
     [Fact]
     public async Task Transact_ReturnsValueOnSuccess()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from entry in add(new User { Name = "ReturnId", Email = "returnid@test.com" })
@@ -329,14 +329,14 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select entry.Entity.Id
         );
 
-        var id = await query.Run(env).RunAsync();
+        var id = await query.RunIO(env).RunAsync();
         id.Should().BeGreaterThan(0);
     }
 
     [Fact]
     public async Task Transact_ReturnsComputedValue()
     {
-        var env = _fixture.CreateDbEnv();
+        var env = _fixture.CreateDbRT();
 
         var query = transact(
             from _ in add(new User { Name = "Computed1", Email = "computed1@test.com" })
@@ -346,7 +346,7 @@ public class DbTransactionEdgeCaseTests : IAsyncLifetime
             select c
         );
 
-        var result = await query.Run(env).RunAsync();
+        var result = await query.RunIO(env).RunAsync();
         result.Should().Be(2);
     }
 }
